@@ -1,10 +1,10 @@
-# Explicación – Agentic coding, Spec-Driven Development e Information Retrieval
+# Explicación – Agentic coding, Spec-Driven Development, Information Retrieval y Knowledge Graphs
 
-Inteligencia Artificial Agéntica · Clase del 01/10/2026 · Docentes: Carlos “Charlie” (profesor invitado) y Eddy
+Inteligencia Artificial Agéntica · Clase del 01/10/2026 · Docentes: Carlos “Charlie” (profesor invitado), Eddy y Nicolás Rubinstein (invitado)
 
-La clase tuvo dos partes con un hilo en común. En la primera, Charlie, que es desarrollador y trabaja en productos basados en agentes, abrió la caja de lo que pasa cuando un agente programa por nosotros. No lo planteó desde la pregunta de si el agente puede hacerlo, que da por resuelta, sino desde otra: cómo hacer para confiar en lo que hace. Para responderla recorrió cómo lee el agente un repositorio, cómo sabe qué tiene que hacer, cómo verifica su propio trabajo y qué límites conviene ponerle. En la segunda parte, Eddy presentó las bases de Information Retrieval: cómo se encuentran documentos relevantes frente a una consulta, que es la pieza de búsqueda que hay debajo de cualquier RAG.
+La clase tuvo tres partes con un hilo en común. En la primera, Charlie, que es desarrollador y trabaja en productos basados en agentes, abrió la caja de lo que pasa cuando un agente programa por nosotros. No lo planteó desde la pregunta de si el agente puede hacerlo, que da por resuelta, sino desde otra: cómo hacer para confiar en lo que hace. Para responderla recorrió cómo lee el agente un repositorio, cómo sabe qué tiene que hacer, cómo verifica su propio trabajo y qué límites conviene ponerle. En la segunda parte, Eddy presentó las bases de Information Retrieval: cómo se encuentran documentos relevantes frente a una consulta, que es la pieza de búsqueda que hay debajo de cualquier RAG. En la tercera, Nicolás Rubinstein mostró, a partir de un proyecto real con Abuelas de Plaza de Mayo, cómo un knowledge graph estructura el conocimiento de un corpus para que un agente pueda recorrerlo, y Eddy cerró ubicando el grafo como el paso siguiente a la detección de entidades.
 
-El puente entre las dos partes es justamente la búsqueda. Una idea fuerte de la primera mitad es que un agente que programa no usa RAG para entender un repositorio, sino búsqueda exacta. La segunda mitad explica cómo funciona la búsqueda “clásica” y semántica que sí tiene sentido en otros escenarios. Entender ambas cosas permite elegir bien cuándo usar cada una.
+El puente entre las tres partes es la búsqueda y, más en general, cómo se le da contexto al modelo. Una idea fuerte de la primera mitad es que un agente que programa no usa RAG para entender un repositorio, sino búsqueda exacta. La segunda mitad explica cómo funciona la búsqueda “clásica” y semántica que sí tiene sentido en otros escenarios. Entender ambas cosas permite elegir bien cuándo usar cada una. La tercera parte agrega otra opción: estructurar previamente el conocimiento como grafo, para que la recuperación (hecha por el harness o por el propio agente) trabaje sobre entidades y relaciones en vez de sobre texto crudo.
 
 ## 1. Del “haceme un script” a confiar en un agente
 
@@ -270,6 +270,108 @@ Para estimar lo que se escapa del pool se usa muestreo. Por ejemplo, entre las p
 
 Anotar es caro, sobre todo si requiere expertos. Una salida es combinar anotación de expertos (en el caso legal, abogados) con anotación hecha por un LLM.
 
+## 11. Knowledge Graphs: estructurar el conocimiento para que un agente lo recorra
+
+La tercera parte de la clase la dio Nicolás Rubinstein, que cursó la maestría, trabaja en evaluación de agentes dentro de un equipo de IA responsable y forma parte del grupo IA por la Identidad. Presentó el proyecto de su tesis: un grafo de conocimiento integrado a un entorno agéntico para Abuelas de Plaza de Mayo. El caso sirve como hilo conductor para entender qué es un knowledge graph, cuándo conviene usarlo y qué decisiones de diseño implica.
+
+### El caso: 900 fallos que nadie pudo leer en detalle
+
+El objetivo del proyecto es integrar distintas fuentes de conocimiento en una sola base de datos estructurada como grafo. La primera fuente son los fallos judiciales de lesa humanidad: un repositorio de unos 900 documentos muy extensos (un solo fallo puede tener 900 páginas) y no estructurados. Contienen información muy rica sobre la represión, que es central para la búsqueda de nietos, pero históricamente fue muy difícil de explotar por una razón simple: no alcanzan las horas humanas para leerlos y cruzarlos. La idea es usar LLMs para extraer y estructurar esa información y dejarla navegable.
+
+El piloto se hizo con los primeros documentos procesados y con búsquedas reales del equipo de Abuelas, para que los casos de uso sean lo más realistas posible. La implementación es gradual, justamente para ir entendiendo qué tipo de consultas e información le resultan relevantes a la organización. Nicolás, que es historiador de formación, agregó un matiz: además de servir a Abuelas, esta forma de representar conocimiento histórico puede servir a otras comunidades e investigaciones, con una dimensión colaborativa. La visualización del grafo en la herramienta está hecha con Sigma.
+
+También señaló que en los últimos meses el interés por los knowledge graphs despegó con fuerza (lo mostró con una búsqueda en Google Trends), y la razón tiene que ver directamente con los agentes.
+
+### Para qué sirve un grafo en un sistema agéntico
+
+La función de un grafo en este contexto es nutrir de contexto a los agentes que trabajan dentro de una organización. Es, en definitiva, una forma más de recuperación de contexto, y por eso se conecta con lo que se venía viendo de Information Retrieval.
+
+Hay dos enfoques para darle a un agente contexto desde un grafo, y la diferencia está en quién hace la recuperación:
+
+- Si la recuperación la hace el **harness**, antes de que el modelo responda, el esquema se parece a un RAG y se lo llama **GraphRAG**.
+- Si la hace el **propio agente**, usando herramientas para ir navegando la información, se habla de **recuperación agéntica** (agentic retrieval).
+
+No son excluyentes: son enfoques complementarios y combinables. Y la distinción no es exclusiva de los grafos; vale para cualquier fuente de datos o forma de estructurar conocimiento. Es la misma lógica que atraviesa toda la materia: cuánta decisión le delegás al modelo y cuánta queda fija en el sistema que lo rodea.
+
+### Qué es un grafo de conocimiento y cuándo conviene
+
+Intuitivamente, un knowledge graph son nodos conectados por relaciones. Una definición un poco más precisa: es una representación del conocimiento mediante entidades y relaciones, con identificadores, donde el significado queda definido por los vínculos.
+
+Construir un grafo es una decisión fuerte y no se adecua a todos los casos de uso. La forma más directa de evaluarla es compararlo con una base relacional, que es lo más extendido y lo más simple. Para agregar ventas por mes, por ejemplo, un grafo es posible pero innecesario: una tabla lo resuelve de forma mucho más intuitiva y eficiente. El grafo empieza a ganar en otros tipos de consulta:
+
+- **Consultas multipaso.** Cuando querés seguir dependencias, por ejemplo entre proveedores y productos en una cadena de producción, y no sabés de antemano cuántos saltos hay que dar. En tablas eso obliga a consultas recursivas, costosas; los grafos están hechos para recorrer caminos. En el caso de Abuelas, una pregunta aparentemente trivial como “¿qué documentos tengo que mirar para seguir la pista de una persona desaparecida?” es exactamente de este tipo: buscás documentos donde aparezcan entidades relacionadas directa o indirectamente con esa persona, sin saber a priori a cuántos pasos están.
+- **Jerarquías.** Relaciones de pertenencia y de distintos tipos semánticos entre entidades. Por eso Wikidata, el motor que está detrás de Wikipedia, es un grafo. La misma consulta sobre una base tabular requiere métodos más costosos.
+- **Integración e interoperabilidad.** Cierto tipo de grafos permite conectarse directamente con información estructurada que ya existe en otros lugares (como Wikidata) mediante **consultas federadas**, sin tener que importar los datos. Para Abuelas esto importa en los dos sentidos: disponibilizar la información para otros y nutrirse de lo que ya está estructurado.
+
+En síntesis: para ver recorridos, dependencias, redes y vínculos entre distintos tipos de entidades, el grafo es una representación idónea, y por eso se está adoptando cada vez más para representar conocimiento complejo en las organizaciones.
+
+### LPG y RDF: dos maneras de representar lo mismo
+
+Hay dos grandes familias de grafos de conocimiento (existen otras, como grafos centrados en la temporalidad, pero estas son las principales).
+
+Un **LPG** (Labeled Property Graph, grafo de propiedades etiquetadas) tiene dos colecciones: nodos y aristas. Dicho de otra forma, una tabla de nodos y una tabla de aristas, donde cada nodo puede tener muchas propiedades (que funcionan como columnas). Un documento, una persona y una relación entre ellos se representan así.
+
+Un **RDF** (Resource Description Framework) tiene una representación más atómica y uniforme: una única colección de **tripletes** sujeto–predicado–objeto, que pueden guardarse en archivos como Turtle o verse como una tabla de tres columnas. Como el objeto de un triplete puede ser sujeto de otro, se arma la red. La diferencia clave es qué pasa con las propiedades: lo que en un LPG es un atributo del nodo, en RDF se descompone en otro nodo relacionado a través de un predicado. Cada atributo pasa a ser un vínculo.
+
+Nicolás propuso una analogía que para alguien de datos es muy directa: es la diferencia entre una tabla en formato **wide** y una en formato **long**. El LPG se parece a la tabla ancha, con una fila por entidad y una columna por atributo; el RDF es una gran tabla larga, con una fila por cada par entidad–atributo (o entidad–relación). La información es la misma y se puede proyectar de un formato al otro, pero cada uno sirve mejor para ciertas operaciones, igual que cuando pivoteás un dataframe según el análisis que vas a hacer.
+
+Las fortalezas de cada uno son distintas:
+
+- Los **LPG** sirven especialmente para análisis estructurales y topológicos: recorridos, caminos más cortos entre entidades, descubrimiento de relaciones, análisis de redes. Habilitan métricas a nivel nodo (la centralidad de un nodo), a nivel componente (estructuras mutuamente relacionadas, parecidas a clústeres dentro del grafo) y a nivel red (clusterización, densidad, distancia media entre nodos), todas sensibles a cualquier cambio en el grafo. Son más fáciles de modelar y de visualizar; el grafo que se ve en la herramienta de Abuelas es un LPG. Su exponente más grande es Neo4j. La contra es que cada proveedor adopta su propio lenguaje de consulta, lo que reduce la interoperabilidad.
+- Los **RDF**, por su alto nivel de estandarización, ofrecen dos cosas que el LPG no tiene. Primero, permiten declarar **reglas semánticas** (con OWL) que habilitan inferencias: si declarás que todo pato es un animal, no hace falta materializar la relación entre cada pato y la clase animal; se calcula en el momento de la consulta. Segundo, la interoperabilidad que permite las consultas federadas. Su exponente es GraphDB y su lenguaje de consulta es SPARQL. Además tienen **reglas de validación estandarizadas**: un dato que no cumple ciertas condiciones (por ejemplo, tener determinados atributos) no entra. El LPG es mucho más permisivo, con lo bueno y lo malo que eso trae.
+
+En ambos casos hay que modelar los datos, igual que se modela una estructura relacional: definir los tipos de entidades, las relaciones, etc. Y ese modelado cambia bastante según el tipo de grafo. Los casos de uso habituales también se reparten: sistemas de recomendación y análisis de redes tiran hacia el LPG; la representación de datos complejos con jerarquías e inferencias, hacia el RDF.
+
+### La decisión en el caso de Abuelas: una arquitectura híbrida
+
+Cuando el equipo tuvo que elegir, descubrió que necesitaba cosas de los dos lados. Por un lado, análisis de redes. Por otro, representar estructuras jerárquicas y hacer inferencias de tipo geoespacial y temporal, para lo cual las reglas semánticas del RDF eran muy atractivas.
+
+Hubo un factor más, que conecta directamente con el uso de LLMs. La extracción de información se facilita muchísimo con LLMs, pero ¿qué le resulta más fácil extraer a un modelo? Un nodo completo con todos sus atributos es difícil, porque esos atributos pueden estar dispersos en distintas partes del texto: un dato de una persona aparece en una página y otro, cincuenta páginas después. Los tripletes, en cambio, son típicamente **locales**: la afirmación “sujeto–predicado–objeto” suele estar contenida en un fragmento. Independientemente del tamaño del chunk, extraer tripletes implica menos carga cognitiva para el LLM y es la forma más idónea de extraer.
+
+Por eso optaron por una **arquitectura híbrida**, que según Nicolás es bastante común: una única fuente de verdad y una proyección al otro tipo de grafo para consultar (incluso se pueden hacer consultas combinadas a ambos mediante reglas). La fuente de verdad es un grafo RDF en GraphDB, y se proyecta a Neo4j tanto para la visualización como para las herramientas con las que el agente consulta el grafo.
+
+La proyección requiere decisiones. Como el RDF “atomiza” las propiedades en nodos relacionados, al proyectar hacia un LPG hay que definir qué predicados (o grupos de predicados) se vuelven atributos de un nodo y cuáles se representan como relaciones. Eso se decide priorizando según el tipo de consultas que se van a hacer.
+
+### Los requerimientos del dominio
+
+El caso tiene necesidades específicas que explican muchas de las decisiones:
+
+- **Información dispersa y repetida.** Documentos de cientos de páginas, y una base que se puede ampliar con otras fuentes: archivos desclasificados de organismos de Estados Unidos, o datos ya estructurados, como una librería de R hecha en la propia maestría con los centros clandestinos de detención y sus ubicaciones geográficas.
+- **Entity resolution.** Dentro de un mismo fallo, y más aún entre fallos, la misma entidad aparece nombrada de distintas maneras. Una de las partes más importantes del proyecto es relacionar información de documentos separados: un dato perdido en un fallo de los juicios de 1985-87, que nadie tuvo tiempo de rastrear, puede vincularse con una persona de un fallo reciente. Entre épocas cambia incluso cómo se nombra a las personas y a las categorías del dominio. Resolver cuándo dos entidades nombradas son la misma es una tarea históricamente compleja, para la que existen librerías especializadas de NLP; con LLMs se resuelve en buena parte dándole al modelo el contexto adecuado para razonar sobre las entidades extraídas, lo cual sigue siendo un gran desafío. Y el costo de errar es alto: unificar entidades que no corresponden, o asignar mal una categoría o una relación, es problemático en un contexto donde la calidad del dato importa tanto.
+- **Validación.** Las reglas de validación estandarizadas del RDF son otro argumento para usarlo como fuente de verdad en este caso.
+- **Tiempo e incertidumbre.** Hay que representar intervalos de tiempo y datos aproximados: alguien que estuvo secuestrado y da testimonio treinta años después a menudo solo puede decir “a fines de tal época”.
+- **Relaciones espaciales.** Se busca reconstruir recorridos: dónde estuvieron las personas y quiénes estuvieron cerca en un mismo intervalo de tiempo con alta probabilidad.
+- **Procedencia y revisión humana.** Hay que preservar de dónde se extrajo cada dato para que expertos (el equipo de Abuelas y, eventualmente, una comunidad más amplia de derechos humanos) puedan revisarlo, marcarlo como correcto o incorrecto, o agregar información que no está en los documentos pero que ellos conocen. Por eso la herramienta tiene un flujo de anotación, y tiene que ser fácil e intuitivo: si anotar es engorroso, no se hace, y la calidad del dato se empobrece.
+- **Consumible por agentes.** El grafo empezó con un agente embebido en la propia herramienta, pero la idea es exponerlo vía MCP para que cualquier agente de la organización lo consulte como una fuente de contexto más, junto con otras.
+- **Interoperabilidad**, por las razones ya vistas.
+
+### El pipeline de extracción
+
+El proceso, que se piensa como mejora continua, tiene varias etapas:
+
+1.  **Extracción del texto de los PDF**, estructurándolo lo más posible con herramientas de machine learning especializadas.
+2.  **Chunking**, con experimentos para encontrar el tamaño adecuado.
+3.  **Clasificación de chunks** para filtrar los relevantes antes de gastar procesamiento: en documentos de 900 páginas hay muchísimos fragmentos repetitivos o de pura fórmula jurídica.
+4.  **Del texto a los tripletes.** La ontología que modelaron es bastante compleja, así que al promptear a los LLMs la subdividieron, para separar responsabilidades entre distintas extracciones. Cada prompt tiene una estructura clara: definición de la tarea, contexto del caso (más allá del fragmento puntual, para contextualizar mejor), definición de la parte de la ontología que corresponde, definición de la salida estructurada y, finalmente, el fragmento a analizar.
+
+Para calibrar el proceso hace falta una ground truth, que para la gran masa de documentos no existe (si existiera, no haría falta extraer). Contaron con la tesis de una persona del equipo de Abuelas, Carolina Villaya, que había hecho un análisis manual de algunos fallos. No era un grafo, pero sí información estructurada que les permitió armar una pequeña ground truth. La métrica que priorizaron fue el **recall**: asegurarse de no perder información en la extracción, aunque eso implique traer ruido que después haya que limpiar. Es la misma lógica que en el caso legal de Information Retrieval: cuando lo grave es que algo relevante quede afuera, se maximiza el recall.
+
+### Un grafo vivo: actualización y curación
+
+En la ronda de preguntas surgió si el grafo es una foto estática. En principio se actualiza cada vez que aparece un documento o un hallazgo nuevo, que se ingesta con el pipeline ya definido y validado; así funcionaría en cualquier organización. Hoy están procesando solo los primeros fallos por dos motivos: quieren refinar y validar el método con Abuelas antes de escalar, y necesitan presupuesto para tokens.
+
+Eddy remarcó cuánto trabajo hay detrás de cada documento: una pasada de LLM para extraer entidades, otra para las relaciones que forman los tripletes, verificaciones, desambiguación. Y después, curación: alguien del equipo explorando el grafo descubre que “ESMA” y “Escuela de Mecánica de la Armada” son el mismo lugar. Ese feedback se integra con trazabilidad: cada dato registra de dónde vino (qué extracción, con qué prompt, sobre qué documento), y cada corrección queda como una anotación de una persona sobre un dato original, que después se incorpora al grafo respetando sus reglas de validación. La anotación está pensada para gente que es experta en el dominio pero no en grafos: no necesita saber cómo se representa el dato, puede dejar un comentario o usar opciones guiadas (marcar una entidad duplicada, agregar una relación) y eso se integra después.
+
+## 12. De la detección de entidades al grafo
+
+Eddy cerró la clase ubicando todo esto en una progresión. Si tenés un corpus que querés investigar, lo primero que se suele hacer es **detección de entidades** (entity recognition): para cada documento, identificar las personas, organizaciones, tipos de organización y fechas que aparecen. Eso transforma un documento en una tabla. Es útil, pero a la hora de investigar se queda muy corto.
+
+El paso siguiente sería poner agentes a trabajar sobre eso: uno que busque cada aparición de una persona y extraiga el contexto, otro que lea esos contextos y empiece a armar vínculos. Eso es algo parecido a un RAG: un agente que busca a partir de texto y de metadata (las entidades) para resolver tareas complejas.
+
+El paso que acelera muchísimo ese trabajo es armar el grafo: representar los datos no de forma tabular sino con la estructura que tiene la información. Y desde el grafo siempre se puede volver a proyectar a tablas, por ejemplo una tabla con todas las interacciones entre personas. Los knowledge graphs aparecen justamente donde hay una fuente de conocimiento que se quiere explorar.
+
+Dos ideas finales. La primera: los datos estructurados de esta manera valen cada vez más. Eddy contó de un proyecto cuyo único producto era un knowledge graph gigante de biología molecular, y su propuesta de valor era “conectá tu agente a mi grafo”. Cada vez más organizaciones quieren su propio grafo para que la gente pueda interactuar con su conocimiento y hacerle preguntas. La segunda: conectar un agente a un knowledge graph es un salto respecto del RAG típico sobre texto plano. En vez de buscar en el texto crudo, primero extraés la información relevante y la estructurás, y después buscás sobre esa estructura.
+
 ## Ideas para llevarse
 
 La pregunta que organiza el agentic coding no es si el agente puede hacer el trabajo, sino cómo construir un sistema en el que se pueda confiar en lo que hace. Ese sistema tiene capas. El harness define qué herramientas y qué contexto tiene el modelo, y explica por qué un mismo modelo rinde distinto en distintos entornos. Para leer un repositorio, la búsqueda exacta con grep le gana a RAG, porque el código cambia todo el tiempo y la frescura importa más que la semántica; RAG queda para corpus estables dentro de productos.
@@ -277,5 +379,7 @@ La pregunta que organiza el agentic coding no es si el agente puede hacer el tra
 Los archivos de reglas, las specs y las skills son guías: mejoran mucho el trabajo si son cortos y contienen lo que el agente no puede deducir, pero no garantizan nada, porque el modelo no es determinista. Lo que tiene que cumplirse siempre se implementa con hooks, que son determinísticos. Lo que hay que medir se implementa con sensores, sobre todo tests, que además tienen que ser significativos. Lo que no se puede cuantificar, como una decisión de arquitectura, sigue requiriendo revisión humana. Alrededor de todo eso, los permisos y el sandbox definen cuánto daño puede hacer un error o una inyección.
 
 En la parte de Information Retrieval, el recorrido va de BM25 (palabras exactas, con IDF, normalización por longitud y saturación) a los embeddings (conceptos), su combinación híbrida por fusión de rankings y el re-ranking, que hoy se hace con un LLM. Y queda una advertencia que conecta las dos mitades: cuando un sistema con IA anda mal, muchas veces el problema no es el modelo, sino el contexto que le damos, sea un archivo de reglas sucio o un buscador que trae los documentos equivocados.
+
+La parte de Knowledge Graphs suma una alternativa para ese contexto: estructurar el conocimiento como entidades y relaciones. Un grafo conviene cuando las preguntas son multipaso, jerárquicas o necesitan integrar fuentes, no para agregaciones que una tabla resuelve mejor. LPG y RDF representan la misma información como un formato wide y uno long: el primero rinde para análisis de redes y visualización, el segundo para inferencias semánticas, validación e interoperabilidad, y una arquitectura híbrida permite tener una fuente de verdad en RDF y proyectar a LPG. Los tripletes son además lo que un LLM extrae mejor, porque son locales al fragmento. El valor real aparece cuando el grafo se cuida como un activo vivo, con procedencia, revisión humana y resolución de entidades, y se conecta a los agentes como fuente de contexto, ya sea vía GraphRAG o recuperación agéntica.
 
 **Sobre la práctica:** el material que mandó Charlie propone repetir el flujo atómico de la demo, en modo manual, modificando el CLAUDE.md o AGENTS.md (y opcionalmente los hooks) para observar qué herramientas llama el agente, y agregar al archivo de reglas la instrucción de mantener un changelog y ADRs para verificar que el agente la aplica.

@@ -4,8 +4,8 @@ Destilado de la consigna y de las clases que están en esta carpeta. Cada punto 
 que el compañero lo pueda citar en una revisión y Flora en la defensa. Si un punto choca con `AGENTS.md`,
 manda `AGENTS.md` (son reglas de Flora para este repo).
 
-Abreviaturas: **C** = `consigna-tp.md` · **08/20**, **10/01**, **10/08**, **11/05**, **11/12** = archivos
-`clase-2026-MM-DD-*.md`.
+Abreviaturas: **C** = `consigna-tp.md` · **08/13**, **08/20**, **08/27**, **09/03**, **09/17**, **10/01**,
+**10/08**, **10/22**, **11/05**, **11/12** = archivos `clase-2026-MM-DD-*.md`.
 
 ## A. Lo que se evalúa (C, "Criterios de evaluación")
 
@@ -62,6 +62,16 @@ reintento contra un criterio automático; evaluación con juez calibrado contra 
    instrucción.
 10. **MVP sólido, sin sobreingeniería ni sobreambición** (10/08 §16). Tracer bullet antes que fases
     (08/20 §9): conectar todo de punta a punta temprano (ítem 005 del backlog).
+11. **Coherente no es correcto; el LLM no dice "no sé"** (08/13 §1–2): ante falta de contexto inventa algo
+    plausible. Por eso las respuestas se apoyan en el contexto recuperado y, si falta un dato, el sistema lo
+    dice en vez de dejar que el modelo lo complete.
+12. **Contexto largo no es contexto útil** (08/13 §2, 10/08 §6 context rot): preseleccionar (RAG) y pasar
+    solo lo relevante de cada ficha, no el corpus entero.
+13. **Diseños comparados de lo simple a lo complejo** (10/22, práctica): one shot → más effort → skill →
+    paralelización → loop con juez. Cada capa de autonomía tiene que mostrar mejora medida contra la anterior
+    (en Enot: B0/B1/B2 y la ablación sin loop).
+14. **Human in the loop con costo y diseño** (10/22): si se agrega, se mide su costo y su efecto en la calidad
+    (C lo pide así para esa área); es etiquetado en línea, con sus problemas de consistencia.
 
 ## D. Evaluación y benchmarks (11/12 §14–15, 10/01 §10, C)
 
@@ -75,6 +85,16 @@ reintento contra un criterio automático; evaluación con juez calibrado contra 
    sin orden (10/01 §10). En un RAG, el retrieval suele ser el cuello de botella.
 6. **Ley de Goodhart** (11/12 §9): si la métrica pasa a ser el objetivo, deja de medir. El compañero
    desconfía de cambios que "mejoran el número" tocando el set o la scoring function.
+
+## D2. Observabilidad (10/22, C "Observabilidad y guardrails")
+
+1. **Trazas estructuradas, no prints**: una traza por ejecución, con un paso (span) por llamada al modelo o
+   a una tool, con inicio, fin, estado, tokens, costo y errores. Que se puedan consultar y filtrar.
+2. La trayectoria de un agente no está determinada: sin traza no se puede saber en qué paso falló.
+3. Las trazas alimentan la evaluación: casos de producción marcados pasan al set (nunca a `data/eval/test/`
+   después de creada).
+4. La herramienta es secundaria (MLflow, Langfuse o un JSONL propio en `data/trazas/`); lo que importa es
+   qué se registra.
 
 ## E. Economía (C, 11/05 §13, 11/12 §6)
 
@@ -103,7 +123,9 @@ en la evaluación, el generador se evalúa.
 6. La consigna exige el uso de asistentes de IA y que el repo incluya **skills, reglas y artefactos**
    usados (C, "Entrega final"): todo lo del harness queda versionado.
 
-## Clases sin explicación escrita
+## Contexto teórico (para preguntas de la defensa)
 
-Las clases del 13/08 y del 27/08 solo están como transcripción en el Drive de Flora y no se versionan acá.
-Si una revisión necesita algo de esas clases, el compañero lo marca como pregunta para Flora.
+- 08/27 y 09/03: word embeddings (de dónde salen los vectores que usa el retrieval semántico).
+- 09/17: de n-gramas a Transformers, atención, bias inductivo; habilidades emergentes y herramientas.
+- 10/01 §11–12: knowledge graphs (LPG vs RDF, pipeline de extracción a tripletes). Enot no usa grafo: si la
+  cátedra pregunta, la alternativa descartada está en ADR-0004.

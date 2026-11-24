@@ -2,6 +2,13 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-24 · desarrollo · explicaciones de todas las clases para el compañero
+- `docs/catedra/`: se suman las explicaciones del 13/08, 27/08, 3/09, 17/09 y 22/10, y la versión nueva del
+  1/10 (con knowledge graphs). Índice actualizado.
+- `lineamientos.md`: puntos nuevos sobre contexto y alucinaciones (08/13), comparar diseños de lo simple a
+  lo complejo y human in the loop (10/22), y una sección de observabilidad con trazas (10/22).
+- ADR-0011: la base de conocimiento del compañero se versiona en el repo.
+
 ## 2026-11-24 · desarrollo · agente compañero revisor, rama de integración y registro obligatorio
 - `.claude/agents/companero.md`: agente revisor que conoce las clases y la consigna; corre los sensores por su
   cuenta y devuelve APROBADO / CAMBIOS / ESCALAR A FLORA. Sin herramientas de edición.
