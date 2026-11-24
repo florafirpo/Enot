@@ -197,3 +197,10 @@ def test_perfil_sin_restricciones_alimentarias():
     assert "restricciones_alimentarias" not in PerfilViaje.model_fields
     with pytest.raises(ValidationError):
         Violacion(tipo="restriccion_alimentaria", mensaje="x")
+
+
+# --- casos encontrados con mutation testing ---------------------------------------------
+
+def test_mensaje_de_idioma_sin_confirmar_lista_los_pedidos(corpus):
+    [w] = verificar_completo(un_dia(parada("muda")), perfil(idiomas=["en", "de"]), corpus).advertencias
+    assert "visitas en en, de:" in w.mensaje
