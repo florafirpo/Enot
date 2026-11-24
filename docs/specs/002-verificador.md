@@ -1,5 +1,8 @@
 # Spec 002: Verificador de restricciones duras
 
+> **Reemplazada parcialmente por la spec 010 / ADR-0012** (24/11): la dieta salió del alcance y las
+> necesidades del turista sin dato (accesibilidad, idioma) pasan a ser advertencias. El francés se cumple siempre.
+
 **Ítem del backlog:** 002 · **Rama:** `noche/2026-11-24-002` (sale de `noche/2026-11-23-001`, todavía sin
 aprobar) · **ADRs relacionados:** ADR-0003, ADR-0005, ADR-0007, ADR-0009 (nuevo)
 
