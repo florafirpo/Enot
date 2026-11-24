@@ -484,3 +484,133 @@ def test_con_la_muestra_real_de_datatourisme(entorno):
     r = ind.buscar(perfil(zonas_preferidas=["Mâconnais"]), k=50, consulta="vin blanc")
     assert r and all(zona_de[c.bodega_id] == "Mâconnais" for c in r)
     assert len(r) == sum(1 for b in bodegas if b.zona == "Mâconnais")
+
+
+# --- casos encontrados con mutation testing ----------------------------------------------
+
+def test_bm25_termino_desconocido_no_corta_la_consulta():
+    bm = BM25(DOCS)
+    assert bm.puntajes(["chablis", "blanco"]) == bm.puntajes(["blanco"])
+
+
+def test_precio_desconocido_no_cuenta_como_costo():
+    bs = [bodega("a-consultar", experiencias=[exp("A", None, None)]), bodega("sin-experiencias"),
+          bodega("gratis", experiencias=[exp("A", 0)]), bodega("un-euro", experiencias=[exp("A", 1)])]
+    assert ids(filtrar(bs, perfil(presupuesto_max_por_persona=0))) == ["a-consultar", "sin-experiencias", "gratis"]
+
+
+def test_mensajes_de_exclusion():
+    p = perfil(idiomas=["en", "de"], cantidad_dias=2, presupuesto_max_por_persona=30)
+    assert motivo_exclusion(bodega("e"), perfil(bodegas_evitar=["e"])) == "el turista pidió evitarla"
+    assert motivo_exclusion(bodega("x", accesible_movilidad_reducida=False), perfil(movilidad_reducida=True)) == (
+        "declara no ser accesible para movilidad reducida")
+    assert motivo_exclusion(bodega("z", zona=""), perfil(zonas_preferidas=["Chablis"])) == (
+        "zona sin zona fuera de las pedidas")
+    assert "(en, de)" not in (motivo_exclusion(bodega("i", idiomas=["fr"]), p) or "")
+    assert motivo_exclusion(bodega("i", idiomas=["fr"]), p) == "publica idiomas y no incluye en, de"
+    finde = [Horario(dias=["sab"], apertura="10:00", cierre="18:00")]
+    assert motivo_exclusion(bodega("d", horarios=finde), p) == "no abre ninguno de los días del viaje (lun, mar)"
+    mixta = bodega("m", idiomas=["ja"], experiencias=[exp("A", 10, idiomas=["ja"]), exp("B", 50, idiomas=["de"])])
+    assert motivo_exclusion(mixta, p) == "ninguna visita cumple a la vez el idioma (en, de) y el máximo de 30.00 EUR"
+
+
+def test_texto_bodega_exacto():
+    assert texto_bodega(bodega("u")) == "[SINTÉTICA] u\nCôte de Beaune\nBeaune"
+    b = bodega("v", experiencias=[exp("Visite", tipo="visita_guiada")])
+    assert texto_bodega(b) == "[SINTÉTICA] v\nCôte de Beaune\nBeaune\nVisite\nvisita_guiada"
+
+
+def test_consulta_desde_perfil_exacta():
+    p = perfil(preferencias="algo chico", zonas_preferidas=["Chablis", "Mâconnais"])
+    assert consulta_desde_perfil(p) == "algo chico Chablis Mâconnais"
+
+
+def test_buscar_sin_perfil_ni_consulta(bodegas, embedder):
+    r = Indice(bodegas, embedder).buscar(None, k=4)
+    assert len(r) == 4 and all(c.puesto_bm25 is None for c in r)
+
+
+def test_buscar_no_depende_del_orden_del_corpus(bodegas, embedder):
+    directo = Indice(bodegas, embedder).buscar(None, k=4, consulta="familiar chablis")
+    invertido = Indice(list(reversed(bodegas)), EmbedderFalso(sinonimos={"familial": "familiar"})).buscar(
+        None, k=4, consulta="familiar chablis")
+    assert directo == invertido
+    assert invertido[0].bodega_id == "ambas" and invertido[0].puesto_bm25 == 1
+
+
+class _Escalado:
+    """Devuelve los vectores del embedder falso multiplicados por factores (potencias de 2: escalar es exacto
+    en punto flotante y no rompe empates) o por cero."""
+    nombre = "escalado"
+
+    def __init__(self, base, factores):
+        self.base, self.factores = base, factores
+
+    def embeber(self, textos):
+        m = self.base.embeber(textos)
+        return m * np.array(self.factores[:len(textos)])[:, None] if len(textos) > 1 else m * 8
+
+
+def test_coseno_no_depende_de_la_norma(bodegas):
+    sin = EmbedderFalso(sinonimos={"familial": "familiar"})
+    normal = Indice(bodegas, sin).buscar(None, k=4, consulta="familiar chablis")
+    escalado = Indice(bodegas, _Escalado(EmbedderFalso(sinonimos={"familial": "familiar"}), [0.5, 64, 4, 8])).buscar(
+        None, k=4, consulta="familiar chablis")
+    assert [c.puesto_embeddings for c in escalado] == [c.puesto_embeddings for c in normal]
+    con_cero = Indice(bodegas, _Escalado(EmbedderFalso(), [1, 1, 1, 0])).buscar(None, k=4, consulta="familiar")
+    assert {c.bodega_id for c in con_cero} == {b.id for b in bodegas}
+
+
+def test_normalizar_filas():
+    from enot.retrieval import _normalizar
+
+    m = _normalizar(np.array([[3.0, 4.0], [0.0, 0.0], [0.0, 2.0]]))
+    assert m.tolist() == [[0.6, 0.8], [0.0, 0.0], [0.0, 1.0]]
+
+
+def test_cache_carpeta_por_defecto(tmp_path, monkeypatch):
+    from corpus import config
+
+    monkeypatch.setattr(config, "DATA", tmp_path / "data")
+    EmbedderConCache(EmbedderFalso(nombre="Modelo X")).embeber(["uno"])
+    assert (tmp_path / "data" / "indice" / "embeddings_modelo-x.npy").exists()
+    assert (tmp_path / "data" / "indice" / "claves_modelo-x.json").exists()
+
+
+def test_cache_crea_carpetas_anidadas(tmp_path):
+    EmbedderConCache(EmbedderFalso(), carpeta=tmp_path / "a" / "b").embeber(["uno"])
+    assert (tmp_path / "a" / "b" / "embeddings_falso.npy").exists()
+
+
+def test_cache_incompleta_se_ignora(tmp_path):
+    EmbedderConCache(EmbedderFalso(), carpeta=tmp_path).embeber(["uno"])
+    (tmp_path / "claves_falso.json").unlink()
+    base = EmbedderFalso()
+    r = EmbedderConCache(base, carpeta=tmp_path).embeber(["uno"])
+    assert base.llamadas == [["uno"]] and r.shape == (1, 256)
+
+
+def test_embedder_openai_arma_el_cliente_con_la_url_de_env(monkeypatch):
+    import openai
+
+    from corpus import config
+
+    creados = []
+
+    class _OpenAIFalso(_ClienteEmbeddings):
+        def __init__(self, base_url=None):
+            super().__init__()
+            creados.append(base_url)
+
+        def _create(self, model, input):
+            self.pedidos.append((model, list(input)))
+            return types.SimpleNamespace(data=[types.SimpleNamespace(index=0, embedding=[1, 2])])
+
+    monkeypatch.setattr(openai, "OpenAI", _OpenAIFalso)
+    monkeypatch.setattr(config, "OPENAI_BASE_URL", "http://localhost:11434/v1")
+    e = EmbedderOpenAI(modelo="m")
+    r = e.embeber(["a"])
+    assert creados == ["http://localhost:11434/v1"]
+    assert r.dtype == float and r.tolist() == [[1.0, 2.0]]
+    e.embeber(["b"])
+    assert len(creados) == 1   # el cliente se arma una sola vez
