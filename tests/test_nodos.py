@@ -586,3 +586,43 @@ def test_render_parada_fuera_del_corpus_no_corta_el_dia_ni_inventa_traslado(traz
     cli = ClienteFalso([{"introduccion": "x"}])
     responder(it, PERFIL_CORTO, {"sint-a": B.model_copy(update={"id": "sint-a"})}, cli, traza)
     assert '"descripcion_breve": null' in cli.llamadas[0]["usuario"]
+
+
+def test_con_la_muestra_real_de_datatourisme(entorno, traza):
+    """Muestra real → paso `datatourisme` (carpeta temporal) → 10 candidatas → contexto y planificación con un LLM
+    falso. Comprueba que el formato real entra en el contexto (ids reales, texto acotado) sin copiar datos."""
+    import contextlib
+    import csv
+    import io
+
+    from corpus import config, datatourisme
+    from enot.retrieval import Indice
+    from tests.dobles import EmbedderFalso
+
+    muestra = FIXTURES.parent.parent / "data" / "datatourisme" / "muestra.csv"
+    if not muestra.exists():
+        pytest.skip("sin data/datatourisme/muestra.csv")
+    with contextlib.redirect_stdout(io.StringIO()):
+        datatourisme.run(str(muestra))
+    bodegas = []
+    for f in csv.DictReader(config.SEED_CSV.open(encoding="utf-8")):
+        texto = json.loads((config.BASE_DIR / f"{f['id']}.json").read_text(encoding="utf-8"))[0]["texto"]
+        bodegas.append(Bodega(id=f["id"], nombre=f["nombre"], zona=f["zona"], comuna=f["comuna"],
+                              lat=float(f["lat"]) if f["lat"] else None, lon=float(f["lon"]) if f["lon"] else None,
+                              descripcion_breve=texto.split("Descripción:", 1)[-1].strip()))
+    perfil = PerfilViaje(cantidad_dias=1, dia_inicio="sab", transporte="auto", personas=2,
+                         zonas_preferidas=["Chablis"])
+    por_id = {b.id: b for b in bodegas}
+    cands = [por_id[c.bodega_id] for c in Indice(bodegas, EmbedderFalso()).buscar(perfil, k=10)]
+    assert len(cands) == 10
+    ctx = contexto_planificador(perfil, cands, [], None)
+    lineas = ctx[ctx.index("<candidatas>"):ctx.index("</candidatas>")].splitlines()[1:]
+    fichas = [json.loads(linea) for linea in lineas]
+    assert [f["id"] for f in fichas] == [b.id for b in cands]
+    assert all(len(f["descripcion_breve"] or "") <= 300 for f in fichas)
+    assert ctx.count(" ↔ ") == 45
+    assert len(ctx) < 20_000  # contexto acotado (C.12)
+
+    propuesta = {"dias": [{"paradas": [{"bodega_id": cands[0].id, "hora_inicio": "10:00", "duracion_min": 60}]}]}
+    it = planificar(perfil, cands, [], ClienteFalso([propuesta]), traza)
+    assert it.dias[0].dia_semana == "sab" and it.dias[0].paradas[0].bodega_id == cands[0].id
