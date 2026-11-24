@@ -21,8 +21,12 @@ estaban escritas y que cambian qué candidatas ve el planificador:
    (sin experiencia, o con cada experiencia) y la bodega pasa si **alguna** visita cumple las dos. Invariante:
    el filtro nunca descarta una bodega para la que existe una visita que el verificador aceptaría en esas
    reglas, y nunca deja pasar una para la que no existe. `zonas_preferidas` es filtro duro (ADR-0004 nombra la
-   subzona entre los filtros duros). `motivo_exclusion` devuelve el porqué, para que el flujo (005) pueda
-   explicar un pedido infactible.
+   subzona entre los filtros duros). Como las zonas del corpus tienen nombres largos ("Chablis y Grand
+   Auxerrois") y el perfil se llena con texto libre, una zona pedida coincide si **todas sus palabras** están en la
+   zona de la bodega ("Chablis" → "Chablis y Grand Auxerrois"). `Indice.zonas_desconocidas(perfil)` devuelve las
+   zonas pedidas que no coinciden con ninguna del corpus, para que el flujo diga "no reconozco la zona X" en vez
+   de presentar el pedido como infactible (revisión 003, ronda 1). `motivo_exclusion` devuelve el porqué de cada
+   exclusión, para que el flujo (005) pueda explicar un pedido infactible.
 2. **BM25 propio** (Okapi, k1 = 1.5, b = 0.75, IDF con +1 dentro del logaritmo). BM25 solo vota por las bodegas con
    puntaje > 0; los embeddings rankean todas. RRF con c = 60 y empates por id.
 3. **Embeddings por la API compatible con OpenAI** (`EmbedderOpenAI`, modelo en `EMBEDDINGS_MODEL`, por defecto
@@ -36,6 +40,7 @@ estaban escritas y que cambian qué candidatas ve el planificador:
 | Opción | A favor | En contra |
 |---|---|---|
 | Filtros con las reglas del verificador, por visita (elegida) | El planificador nunca recibe una candidata imposible ni pierde una posible; una sola regla para explicar | Hay que mantener la coherencia con el verificador (la cuida `test_filtros_coinciden_con_el_verificador`) |
+| Zona como `Literal` con las zonas del corpus en `PerfilViaje` | El LLM no puede inventar zonas (enum) | Las zonas salen del pipeline (`corpus/datatourisme.py`, con zonas de respaldo por departamento) y el modelo de dominio quedaría atado al corpus; rechazaría "Chablis" en vez de entenderlo |
 | Filtros más estrictos que el verificador (sin dato = afuera) | Menos reintentos | Vuelve el sesgo contra bodegas chicas que ADR-0012 sacó del verificador |
 | Cada regla por separado (no por visita) | Más simple | Deja pasar bodegas donde la visita en inglés es la cara y la barata es en alemán: el test de coherencia lo encontró |
 | Reusar `verificar` como filtro (armar un itinerario de una parada) | Cero duplicación | Necesita una hora y un día concretos, y mezcla reglas de tiempo que el filtro no puede decidir sin armar el plan |
@@ -58,7 +63,8 @@ estaban escritas y que cambian qué candidatas ve el planificador:
 
 ## Cómo se verifica
 `tests/test_retrieval.py`: `test_rrf_ejemplo_de_clase`, `test_bm25_puntaje_a_mano`, `test_filtro_*`,
-`test_filtro_idioma_y_presupuesto_juntos`, `test_filtros_coinciden_con_el_verificador`,
+`test_filtro_idioma_y_presupuesto_juntos`, `test_filtros_coinciden_con_el_verificador`, `test_filtro_zona_por_palabras`,
+`test_zonas_desconocidas`,
 `test_buscar_combina_bm25_y_embeddings`, `test_bm25_solo_vota_documentos_con_coincidencias`, `test_cache_*`,
 `test_embedder_openai_*`, `test_con_la_muestra_real_de_datatourisme`. `tests/test_eval_retrieval.py`:
-`test_ndcg_a_mano`, `test_recall_a_mano`. Mutation: `enot/retrieval.py` 440/461, `eval/retrieval.py` 174/196.
+`test_ndcg_a_mano`, `test_recall_a_mano`. Mutation: `enot/retrieval.py` 459/479, `eval/retrieval.py` 177/196.

@@ -14,6 +14,14 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (24/11, ítem 003) `zonas_preferidas` es **filtro duro** (ADR-0004 pone la subzona entre los filtros); una zona
+  pedida coincide por palabras ("Chablis" → "Chablis y Grand Auxerrois") y las que no existen se informan con
+  `Indice.zonas_desconocidas`. Recomendación: aceptarlo. Alternativa: usarla solo como preferencia blanda
+  (sumaría a la consulta, sin excluir).
+- (24/11, ítem 003) ADR-0013 (retrieval: filtros con las reglas del verificador, BM25 propio, embeddings cacheados
+  fuera de `ClienteLLM`) en "Propuesto". Recomendación: aceptarlo.
+- (24/11, ítem 003) Agregar `EMBEDDINGS_MODEL=text-embedding-3-small` a `.env.example` (el agente no puede leer ni
+  editar `.env*` por la política de permisos). Recomendación: sí; con Ollama, un modelo multilingüe local.
 - (24/11, ítem 010) ¿Sumar al ítem 007 la métrica "advertencias promedio por itinerario, por tipo" junto al hard
   pass rate? Con ADR-0012 un itinerario factible puede llevar advertencias; sin esa métrica, H1 esconde la
   incertidumbre (hallazgo menor del compañero, `docs/revisiones/010-ronda-1.md`). Recomendación: sí. Además,

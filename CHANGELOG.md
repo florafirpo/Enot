@@ -14,6 +14,9 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
 - ADR-0013 (propuesto). Spec 002 marcada como reemplazada en parte por la 010 (hallazgo menor de la revisión 010).
 - 71 tests nuevos (179 → 250), ningún test existente modificado. Mutation: `enot/retrieval.py` 440/461 (95%),
   `eval/retrieval.py` 174/196 (89%).
+- Ronda 2 (revisión 003 ronda 1, CAMBIOS): zonas pedidas por palabras ("Chablis" encuentra "Chablis y Grand
+  Auxerrois") e `Indice.zonas_desconocidas`; tests de k = 10 por defecto y de `recuperados` cortado en k; spec y
+  decisiones pendientes en `docs/feedback-flora.md`. 254 tests. Mutation: 459/479 y 177/196.
 
 ## 2026-11-24 · noche/2026-11-24-010 · datos faltantes del turista: advertencias en vez de violaciones
 - `enot/verificador.py`: `verificar_completo(...) -> ResultadoVerificacion(violaciones, advertencias)` y
