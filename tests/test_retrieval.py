@@ -528,6 +528,7 @@ def test_consulta_desde_perfil_exacta():
 def test_buscar_sin_perfil_ni_consulta(bodegas, embedder):
     r = Indice(bodegas, embedder).buscar(None, k=4)
     assert len(r) == 4 and all(c.puesto_bm25 is None for c in r)
+    assert embedder.llamadas[-1] == [""]
 
 
 def test_buscar_no_depende_del_orden_del_corpus(bodegas, embedder):
@@ -614,3 +615,8 @@ def test_embedder_openai_arma_el_cliente_con_la_url_de_env(monkeypatch):
     assert r.dtype == float and r.tolist() == [[1.0, 2.0]]
     e.embeber(["b"])
     assert len(creados) == 1   # el cliente se arma una sola vez
+
+
+def test_solo_una_experiencia_sin_precio_cumple_idioma_y_presupuesto():
+    b = bodega("b", idiomas=["de"], experiencias=[exp("A", 10, idiomas=["de"]), exp("B", None, None, idiomas=["en"])])
+    assert motivo_exclusion(b, perfil(idiomas=["en"], presupuesto_max_por_persona=0)) is None

@@ -133,3 +133,52 @@ def test_main_escribe_el_reporte(tmp_path, monkeypatch, capsys):
     datos = json.loads(reporte.read_text(encoding="utf-8"))
     assert datos["k"] == 3 and datos["n"] == 1 and datos["recall_medio"] == 1.0
     assert "recall@3" in capsys.readouterr().out
+
+
+# --- casos encontrados con mutation testing ----------------------------------------------
+
+def test_mensajes_de_error():
+    with pytest.raises(ValueError, match="sin bodegas relevantes"):
+        recall_at_k(["a"], {}, 1)
+    with pytest.raises(ValueError, match="k tiene que ser"):
+        ndcg_at_k(["a"], {"a": 1}, 0)
+    with pytest.raises(ValueError, match="no hay consultas"):
+        evaluar(lambda q, k: [], [])
+
+
+def test_k_por_defecto_es_10():
+    q = ConsultaEtiquetada(id="q", consulta="x", relevantes=["a"])
+    vistos = []
+    assert evaluar(lambda c, k: vistos.append(k) or ["a"], [q]).k == 10
+    assert vistos == [10]
+
+
+def test_main_usa_perfil_k_y_carpetas(tmp_path, monkeypatch):
+    import enot.retrieval
+    from corpus import config
+
+    class _Real(EmbedderFalso):
+        def __init__(self):
+            super().__init__(nombre="real-falso")
+
+    monkeypatch.setattr(enot.retrieval, "EmbedderOpenAI", _Real)   # el embedder por defecto, sin red
+    monkeypatch.setattr(config, "DATA", tmp_path / "data")
+    monkeypatch.setattr(config, "FICHAS_JSONL", FIXTURES / "fichas_sinteticas.jsonl")
+    monkeypatch.setattr(config, "REPORTS_DIR", tmp_path / "a" / "reports")
+    perfil = {"cantidad_dias": 1, "dia_inicio": "lun", "transporte": "auto", "personas": 2,
+              "zonas_preferidas": ["Côte de Beaune"]}
+    consultas = tmp_path / "consultas.jsonl"
+    consultas.write_text(json.dumps({"id": "q1", "consulta": "Pommard", "perfil": perfil,
+                                     "relevantes": ["sint-pommard"]}) + "\n", encoding="utf-8")
+    assert main([str(consultas)]) == 0
+    assert main([str(consultas), "--k", "1"]) == 0          # segunda corrida: la carpeta ya existe
+    datos = json.loads(next((tmp_path / "a" / "reports").glob("retrieval_*.json")).read_text(encoding="utf-8"))
+    assert datos["k"] == 1 and len(datos["por_consulta"][0]["recuperados"]) == 1
+    assert (tmp_path / "data" / "indice" / "embeddings_real-falso.npy").exists()   # cacheó los embeddings
+    from enot.corpus_local import cargar_corpus
+    zonas = {b.id: b.zona for b in cargar_corpus(FIXTURES / "fichas_sinteticas.jsonl").values()}
+    main([str(consultas), "--k", "10"])
+    datos = json.loads(next((tmp_path / "a" / "reports").glob("retrieval_*.json")).read_text(encoding="utf-8"))
+    assert datos["por_consulta"][0]["recuperados"]
+    assert all(zonas[i] == "Côte de Beaune" for i in datos["por_consulta"][0]["recuperados"])  # usó el perfil
+    assert len(datos["por_consulta"][0]["recuperados"]) < len(zonas)
