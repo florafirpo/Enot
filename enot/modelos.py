@@ -55,6 +55,8 @@ class Bodega(BaseModel):
     lat: Optional[float] = None
     lon: Optional[float] = None
     perfil: str = "no_informado"
+    descripcion_breve: Optional[str] = None
+    vinos_o_varietales_destacados: list[str] = Field(default_factory=list)
     horarios: list[Horario] = Field(default_factory=list)
     experiencias: list[Experiencia] = Field(default_factory=list)
     requiere_reserva: Optional[bool] = None
