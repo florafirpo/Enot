@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from enot.corpus_local import cargar_corpus
 from enot.modelos import Bodega
 from enot.tools import ItemCosto, abierta_en, costo_experiencias, tiempo_traslado
@@ -154,3 +155,34 @@ def test_costo_errores_por_bodega_o_experiencia_inexistente(corpus):
 def test_costo_personas_invalidas(corpus):
     r = costo_experiencias(corpus, [ItemCosto(bodega_id="sint-beaune")], 0)
     assert r.total_eur == 0 and r.errores
+
+
+# --- casos agregados tras mutation testing ---------------------------------------
+
+def test_traslado_con_solo_una_coordenada_da_error():
+    corpus = {"a": bodega_en("a", 47.0, 4.8), "b": bodega_en("b", 47.1, None)}
+    r = tiempo_traslado(corpus, "a", "b", "auto")
+    assert r.minutos is None and "b" in r.error
+
+
+def test_horario_con_apertura_pero_sin_cierre_es_desconocido():
+    from enot.modelos import Horario
+    b = Bodega(id="x", nombre="x", horarios=[Horario(dias=["lun"], apertura="10:00", cierre=None)])
+    assert abierta_en({"x": b}, "x", "lun", "11:00", 60).abierta is None
+
+
+def test_costo_sigue_sumando_despues_de_un_item_sin_precio(corpus):
+    r = costo_experiencias(corpus, [ItemCosto(bodega_id="sint-chablis"),       # sin precio en EUR
+                                    ItemCosto(bodega_id="sint-gevrey")], 2)    # 25 € × 2
+    assert r.total_eur == pytest.approx(50) and len(r.sin_precio) == 1
+
+
+def test_costo_los_mensajes_nombran_la_bodega(corpus):
+    r = costo_experiencias(corpus, [ItemCosto(bodega_id="no-existe"),
+                                    ItemCosto(bodega_id="sint-beaune", experiencia="Paseo en globo"),
+                                    ItemCosto(bodega_id="sint-sin-horario"),
+                                    ItemCosto(bodega_id="sint-chablis", experiencia="Visite USD")], 1)
+    assert "no-existe" in r.errores[0] and "Paseo en globo" in r.errores[1]
+    assert r.sin_precio[0].startswith("sint-sin-horario") and "Visite USD" in r.sin_precio[1]
+    r0 = costo_experiencias(corpus, [ItemCosto(bodega_id="sint-beaune")], 0)
+    assert "personas" in r0.errores[0]
