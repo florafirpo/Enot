@@ -25,7 +25,8 @@ El loop de reintento, la `Sesion` y la CLI son del ítem 005: acá no se encaden
 class EventoTraza(BaseModel):
     conversacion: str; nodo: Literal["relevamiento", "planificador", "respuesta"]; intento: int  # del loop (005)
     proveedor: str; modelo: str; inicio: str  # ISO 8601 UTC
-    latencia_s: float; tokens_in: int; tokens_out: int; intentos_validacion: int  # los de ClienteLLM
+    latencia_s: float
+    tokens_in: int | None; tokens_out: int | None; intentos_validacion: int | None  # del Resultado; None si falló
     estado: Literal["ok", "error"]; error: str | None
 class Traza:
     def __init__(self, ruta: Path, conversacion: str | None = None)   # conversacion por defecto = ruta.stem
@@ -102,7 +103,8 @@ Los motivos con un `bodega_id` que no está en el itinerario se ignoran.
 
 **Trazas.** Cada llamada al cliente, salga bien o mal, agrega un `EventoTraza` (latencia medida con
 `perf_counter`; tokens e intentos de validación del `Resultado`). Si el cliente lanza, se registra con
-`estado="error"` y se relanza como `ErrorNodo`.
+`estado="error"`, tokens e intentos en `None` (desconocidos: `ClienteLLM` puede haber hecho llamadas pagas antes de
+fallar y no las informa; registrar 0 sería un número inventado, revisión 004 ronda 1) y se relanza como `ErrorNodo`.
 
 ## Archivos a tocar
 - Crear: `enot/nodos.py`, `enot/trazas.py`, `enot/prompts/__init__.py`, `enot/prompts/relevamiento.md`,
@@ -183,7 +185,7 @@ Trazas (`tests/test_nodos.py` y `tests/test_trazas.py`)
 - `test_cada_nodo_registra_un_evento`: relevar + planificar + responder → 3 eventos con nodo, proveedor y modelo
   del cliente, tokens del `Resultado`, `estado="ok"` e `intento` del planificador.
 - `test_error_del_cliente_se_registra_y_relanza`: cliente que siempre da JSON inválido → `ErrorNodo` y un evento
-  con `estado="error"` y el mensaje.
+  con `estado="error"`, el mensaje y tokens e intentos en `None` (no 0).
 - `test_traza_nueva_crea_archivo_en_carpeta`, `test_traza_registrar_y_leer`, `test_traza_vacia_sin_archivo`,
   `test_evento_traza_valida_campos` (estado fuera del `Literal` falla).
 - `test_cargar_prompt_existente_y_faltante`: los tres prompts existen y no están vacíos; uno inexistente →
@@ -212,7 +214,9 @@ Agregados después del código (contratos exactos y casos encontrados con mutati
 - `test_con_la_muestra_real_de_datatourisme`: la muestra real pasa por el paso `datatourisme` en una carpeta
   temporal; con 10 candidatas de Chablis, el contexto trae sus ids en orden, descripciones ≤ 300 caracteres, 45
   pares de traslado y menos de 20.000 caracteres; `planificar` acepta un id real.
-- `tests/test_trazas.py`: `test_traza_nueva_por_defecto_en_data_trazas`, `test_traza_crea_carpetas_anidadas`.
+- `tests/test_trazas.py`: `test_traza_nueva_por_defecto_en_data_trazas`, `test_traza_crea_carpetas_anidadas`,
+  `test_evento_traza_tokens_desconocidos` (revisión ronda 1: `None` se acepta, se escribe y se lee como `None`;
+  negativos siguen fallando).
 
 Sensores: `make check`; `make registro`; `make tests-modificados` (ningún test existente cambia). Mutation no
 es obligatorio (no se tocan verificador, tools ni métricas); se corre igual sobre `enot/nodos.py` y se informa.
