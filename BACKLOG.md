@@ -63,6 +63,9 @@ Cada ítem respeta los ADRs.
   - `enot/flujo.py`: `Sesion` serializable y el workflow de ADR-0003 con circuit breaker
     (`max_intentos=3`, tope de tokens). `max_intentos=1` = ablación B2.
   - `python -m enot`: chat por consola; `--sesion archivo.json` para retomar.
+  - Antes de buscar, si `Indice.zonas_desconocidas(perfil)` no está vacía, avisar "no reconozco la zona X" en vez
+    de presentar el pedido como infactible (revisión 003 ronda 2). Opcional: ignorar palabras vacías ("et", "de",
+    "des") en `_coincide_zona`.
   - Aceptación: con un LLM falso que primero propone algo inválido, el flujo reintenta y termina válido;
     con uno que siempre falla, corta en 3 y explica la restricción que no se pudo cumplir; un ajuste
     ("sacá la segunda bodega") edita el itinerario vigente.
