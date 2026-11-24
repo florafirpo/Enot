@@ -52,7 +52,7 @@ Cada ítem respeta los ADRs.
   - Aceptación: RRF con el ejemplo de clase (A, B, C con c=60 → B primero); los filtros excluyen lo que
     deben; métricas con casos calculados a mano.
 
-- [ ] **004 · Nodos con LLM: relevamiento, planificador y respuesta** (26/11)
+- [~] **004 · Nodos con LLM: relevamiento, planificador y respuesta** (26/11) · rama `noche/2026-11-24-004`
   - `enot/nodos.py`: `relevar(historial) -> PerfilViaje | Pregunta`, `planificar(perfil, candidatas,
     violaciones_previas) -> Itinerario`, `responder(itinerario, perfil) -> str`. Prompts en `enot/prompts/`.
   - Todas las llamadas pasan por `ClienteLLM` (ADR-0006) y quedan en una traza JSONL (`data/trazas/`).
@@ -89,6 +89,9 @@ Cada ítem respeta los ADRs.
     `data/eval/anotacion_humana.csv` (lo completa Flora).
   - `eval/reporte.py`: tabla final (métricas por sistema, costo y latencia media y p95 desde las trazas)
     en `reports/resultados.md`.
+  - Llamadas fallidas (revisión 004 ronda 1): la traza las registra con tokens `None`. El reporte cuenta cuántas
+    hay en vez de sumarlas como 0; para medir su costo, que el error de `ClienteLLM` traiga los tokens consumidos.
+    Además (revisión 004 ronda 2, menor): que `EventoTraza` exija tokens cuando `estado == "ok"` (`model_validator`).
   - Aceptación: Spearman y kappa con valores conocidos; el reporte se arma con trazas de ejemplo.
 
 - [ ] **009 · Cierre: README, Docker, interfaz mínima y guion** (1/12)

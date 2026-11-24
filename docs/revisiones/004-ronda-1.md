@@ -1,0 +1,28 @@
+# Revisión · 004 · ronda 1
+**Veredicto:** CAMBIOS
+**Rama:** noche/2026-11-24-004 · **Commits revisados:** a6f7a38..cd85908
+
+## Sensores (corridos por mí)
+- ruff: All checks passed!
+- pytest: 301 passed, 0 fallas (254 en la base + 47 nuevos, todos en `tests/test_nodos.py` y `tests/test_trazas.py`)
+- registro (CHANGELOG + ADR): OK. Hay entrada nueva arriba en CHANGELOG y ADR-0014 tiene todas las secciones del template.
+- mutation: no es obligatoria (la rama no toca verificador, tools ni métricas). La corrí igual: `enot/nodos.py` 540/565 y `enot/trazas.py` 33/38. Revisé a mano 5 sobrevivientes de nodos: texto de un `ValueError`, `ensure_ascii=None` contra `False` y `loc[:2]` contra `loc[:1]`. Los 5 son equivalentes o cosméticos, como dice el reporte.
+- tests existentes modificados: "OK: no se modificó ningún test existente."
+
+## Hallazgos
+1. [importante] enot/nodos.py:56-58 (y tests/test_nodos.py:383) — Cuando el cliente falla, la traza guarda `tokens_in=0`, `tokens_out=0` e `intentos_validacion=0`. Es falso: si `ClienteLLM.estructurado` agota la validación, ya hizo 2 llamadas pagas antes de lanzar el `RuntimeError` (corpus/llm.py:84-98). El test `test_error_del_cliente_se_registra_y_relanza` deja fijado ese 0 como si fuera correcto. Las llamadas que fallan son justo las más caras, y la traza es la fuente del costo por itinerario del ítem 008 (PRD 9). Así, ese costo va a salir más bajo de lo real y nada va a avisar. El ADR-0014 dice "un evento por llamada con tokens, latencia y errores, base del reporte de costos" y no menciona este hueco. — La cátedra pide que la traza registre tokens, costo y errores de cada paso, y que no haya números fabricados (lineamientos D2.1, E, A "Nada fabricado", regla madre).
+   Cómo resolverlo: sin tocar `corpus/llm.py` (que está fuera de alcance), en los eventos con error registrá tokens e intentos como desconocidos, no como 0. Por ejemplo, `Optional[int] = None` en `EventoTraza` y que el test lo verifique, o un campo explícito `tokens_desconocidos=True`. Anotá en ADR-0014, sección "Consecuencias", que el costo de las llamadas fallidas no se mide hasta que el error de `ClienteLLM` traiga los tokens, y dejalo pendiente para 005/008 en el backlog. El test es nuevo de esta rama, así que se puede cambiar.
+
+2. [menor] docs/adr/0014-nodos-llm-contexto-y-salidas-acotadas.md (Consecuencias, primer punto) — Dice "Todo número que ve el turista sale de las tools… el nodo de respuesta no puede contradecir al verificador". La parte del detalle sí lo cumple, pero la `introduccion` y los `motivos` son texto libre del LLM y se pegan sin control: que no traigan horarios ni precios lo pide solo el prompt `respuesta.md`. — La cátedra pide que el límite viva en el código y no en el prompt, y que lo que se afirma sea verificable (lineamientos C.4, regla madre).
+   Cómo resolverlo: corregí la frase del ADR a algo como "todo número del detalle sale de las tools; la introducción y los motivos solo están restringidos por el prompt". Otra opción es un chequeo barato en código, por ejemplo descartar el motivo si trae dígitos seguidos de "€", "EUR", "h" o "min", con su test.
+
+## Lo que está bien
+- El esquema de salida del planificador se arma para cada llamada (`modelo_salida_planificador`): `bodega_id` es un `Literal` con las ids de las candidatas y `dias` tiene exactamente `cantidad_dias` elementos. Si el LLM inventa una bodega, la validación lo rechaza y no se gasta un intento del loop. `test_planificar_rechaza_bodega_fuera_de_candidatas` fallaría con un `str` libre (C.7).
+- El LLM extrae y el código decide: qué falta preguntar, si un valor es válido y qué día de la semana cae una fecha (`perfil_desde_borrador`, `dia_de_semana`). `test_relevar_no_confia_en_el_llm_para_completar` fija esa responsabilidad. Horarios, precios, traslados, total y advertencias de la respuesta los arma `render_itinerario` con las mismas tools que usa el verificador (C.2, C.11, ADR-0005).
+- El contexto se diseñó con cuidado. Cada ficha se recorta a lo que sirve para planificar, el texto va entre etiquetas y el `<`/`>` del turista se neutraliza para que no pueda cerrar la etiqueta. Hay un test con la muestra real de DATAtourisme que acota el tamaño: 45 pares de traslado y menos de 20.000 caracteres (C.9, C.12). El orden de commits respeta SDD: spec → tests → código, y los tests agregados después del código están rotulados así en la spec. Los 3 tests clave fallarían con una implementación constante o que ignore `violaciones_previas`.
+
+## Preguntas que haría la cátedra en la defensa
+- ¿Por qué el planificador no tiene tools, si ADR-0003 habla de "LLM con tools de cálculo"? → Con k = 10 candidatas, la matriz completa de traslados son 45 pares y entra en el contexto. Así es una sola llamada, con costo y latencia acotados y sin trayectorias variables (C.3). Si en dev hace falta k > 15, se pasa a tools o a pares por zona (ADR-0014).
+- ¿Cómo saben que el LLM no inventa una bodega o un día de más? → El JSON Schema de salida tiene un `enum` con las ids de las candidatas y `minItems`/`maxItems` igual a la cantidad de días. Si se sale, no valida y `ClienteLLM` reintenta con el error. Como segunda red, el verificador marca `bodega_inexistente`.
+- ¿Por qué las repreguntas son texto fijo y no las escribe el LLM? → Para que el modelo no dé por completo un perfil al que le falta algo, ni pregunte por un dato que ya se dijo (C.11). El costo es naturalidad. La alternativa es que el LLM reescriba la pregunta mientras los `faltantes` siguen saliendo del código.
+- ¿Cuánto cuesta una conversación, incluidas las fallas? → Hoy la traza da tokens y latencia de las llamadas exitosas. Las fallidas quedan registradas, pero sin tokens (hallazgo 1), hasta que `ClienteLLM` los exponga en el error.
