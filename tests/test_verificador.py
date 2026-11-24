@@ -569,7 +569,7 @@ def test_mensaje_de_idioma_nombra_la_experiencia_o_la_bodega(corpus):
     assert "Déjeuner" in v.mensaje and "en, de" in v.mensaje
     corpus["b"] = corpus["b"].model_copy(update={"idiomas": []})
     [v] = verificar(un_dia(parada("b", "10:00", 60, "Visite")), perfil(idiomas=["en"]), corpus)
-    assert "Visite" not in v.mensaje and "[SINTÉTICA] b" in v.mensaje and "ninguno" in v.mensaje
+    assert "Visite" not in v.mensaje and "[SINTÉTICA] b" in v.mensaje and "publicados: ninguno)" in v.mensaje
     corpus["b"] = corpus["b"].model_copy(update={"idiomas": ["fr", "de"]})
     [v] = verificar(un_dia(parada("b", "10:00")), perfil(idiomas=["en"]), corpus)
     assert "fr, de" in v.mensaje
@@ -579,4 +579,4 @@ def test_mensaje_de_experiencia_inexistente_lista_las_publicadas(corpus):
     [v] = verificar(un_dia(parada("a", "10:00", 60, "Globo")), perfil(), corpus)
     assert "Dégustation, Déjeuner" in v.mensaje
     [v] = verificar(un_dia(parada("sin-horario", "10:00", 60, "Globo")), perfil(), corpus)
-    assert "ninguna" in v.mensaje
+    assert "Publicadas: ninguna." in v.mensaje
