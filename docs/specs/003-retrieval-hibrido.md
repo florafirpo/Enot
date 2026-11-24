@@ -56,6 +56,10 @@ aceptaría.
 | días de apertura | publica horarios y no abre ninguno de los días del viaje | abre al menos uno, o sin horario |
 | presupuesto | todas sus experiencias tienen precio en EUR y la más barata supera el máximo por persona | alguna sin precio (o en otra moneda), sin experiencias, igual al máximo |
 
+Idioma y presupuesto se evalúan **por visita posible** (sin experiencia, o con cada experiencia), con las mismas
+reglas que el verificador: tiene que existir una visita que cumpla las dos a la vez. Si cada una se cumple por
+separado pero en visitas distintas, la bodega se excluye.
+
 ### Combinación
 BM25 rankea solo las candidatas con puntaje > 0 (si no comparte ninguna palabra, BM25 no la vota); los embeddings
 rankean todas las candidatas por coseno. `rrf` suma `1 / (c + puesto)` por cada ranking en el que el documento
@@ -102,7 +106,7 @@ aparece dentro de `top`. Empates: por id (determinístico).
 - `test_dias_del_viaje` — 3 días desde sábado → sab, dom, lun.
 - Filtros, cada uno con el caso que excluye y el que no: `test_filtro_bodegas_evitar`, `test_filtro_zona`,
   `test_filtro_capacidad`, `test_filtro_accesibilidad`, `test_filtro_idioma`, `test_filtro_dias`,
-  `test_filtro_presupuesto`, `test_sin_perfil_no_filtra`, `test_motivo_exclusion_explica`.
+  `test_filtro_presupuesto`, `test_filtro_idioma_y_presupuesto_juntos`, `test_sin_perfil_no_filtra`, `test_motivo_exclusion_explica`.
 - `test_filtros_coinciden_con_el_verificador` — una bodega que pasa los filtros no da violación de capacidad,
   accesibilidad, idioma ni presupuesto en una visita a la experiencia más barata; una excluida sí.
 - `test_texto_bodega_incluye_lo_indexable`, `test_consulta_desde_perfil`.
