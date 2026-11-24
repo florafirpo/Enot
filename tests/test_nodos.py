@@ -380,7 +380,8 @@ def test_error_del_cliente_se_registra_y_relanza(traza):
     (ev,) = traza.eventos()
     assert ev.estado == "error" and ev.nodo == "relevamiento"
     assert "salida inválida" in ev.error
-    assert (ev.tokens_in, ev.tokens_out) == (0, 0)
+    # desconocidos, no 0: ClienteLLM pudo haber hecho llamadas pagas antes de fallar (revisión 004 ronda 1)
+    assert (ev.tokens_in, ev.tokens_out, ev.intentos_validacion) == (None, None, None)
 
 
 def test_cargar_prompt_existente_y_faltante():
@@ -550,7 +551,7 @@ def test_traza_de_error_detalles(traza):
     assert isinstance(exc.value.causa, RuntimeError)
     assert str(exc.value).startswith("planificador: ")
     (ev,) = traza.eventos()
-    assert len(ev.error) == 500 and ev.intentos_validacion == 0 and ev.intento == 1
+    assert len(ev.error) == 500 and ev.intentos_validacion is None and ev.intento == 1
     assert ev.inicio.endswith("+00:00")
     assert 0 <= ev.latencia_s < 60
 

@@ -67,3 +67,15 @@ def test_traza_crea_carpetas_anidadas(tmp_path):
     t = Traza(tmp_path / "a" / "b" / "c" / "x.jsonl")
     t.registrar(evento(error="Côte de Nuits — ñ"))
     assert t.eventos()[0].error == "Côte de Nuits — ñ"
+
+
+def test_evento_traza_tokens_desconocidos(tmp_path):
+    """Revisión 004 ronda 1: en una llamada fallida los tokens no se conocen; se registran como None, no como 0."""
+    e = evento(estado="error", error="salida inválida", tokens_in=None, tokens_out=None, intentos_validacion=None)
+    t = Traza(tmp_path / "x.jsonl")
+    t.registrar(e)
+    (leido,) = t.eventos()
+    assert (leido.tokens_in, leido.tokens_out, leido.intentos_validacion) == (None, None, None)
+    assert '"tokens_in":null' in t.ruta.read_text(encoding="utf-8")
+    with pytest.raises(ValidationError):
+        evento(intentos_validacion=-1)
