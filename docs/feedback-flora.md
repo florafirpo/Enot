@@ -14,6 +14,13 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (24/11, ítem 004) ADR-0014 en "Propuesto": el relevamiento repregunta con **textos fijos escritos en código**
+  (no los redacta el LLM) y el planificador recibe los **tiempos de traslado precalculados** en el contexto, en vez
+  de tools. Recomendación: aceptarlo para el tracer bullet (005) y revisar después de tus pruebas del 26–27/11.
+  Alternativas: que el LLM reescriba las preguntas (los `faltantes` siguen saliendo del código) o extender
+  `ClienteLLM` con tool calling.
+- (24/11, ítem 004) Revisá el texto de los prompts (`enot/prompts/*.md`) y las preguntas fijas (`PREGUNTAS` y
+  `MOTIVOS_INVALIDO` en `enot/nodos.py`): están en rioplatense y son lo único que el turista ve escrito por código.
 - (24/11, ítem 003) `zonas_preferidas` es **filtro duro** (ADR-0004 pone la subzona entre los filtros); una zona
   pedida coincide por palabras ("Chablis" → "Chablis y Grand Auxerrois") y las que no existen se informan con
   `Indice.zonas_desconocidas`. Recomendación: aceptarlo. Alternativa: usarla solo como preferencia blanda

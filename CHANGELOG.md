@@ -2,6 +2,20 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-24 · noche/2026-11-24-004 · nodos con LLM (relevamiento, planificador, respuesta) y trazas
+- `enot/nodos.py`: `relevar(historial) -> PerfilViaje | Pregunta` (el LLM extrae un `BorradorPerfil`; qué falta, qué
+  es inválido y el día de la semana de una fecha los decide el código, con preguntas fijas por campo);
+  `planificar(perfil, candidatas, violaciones_previas, …) -> Itinerario` (tiempos de traslado precalculados en el
+  contexto; salida con `bodega_id` ∈ candidatas y exactamente `cantidad_dias` días; en el reintento recibe el
+  itinerario anterior y las violaciones); `responder(itinerario, perfil, corpus, …) -> str` (el LLM escribe
+  introducción y motivos; horarios, precios, traslados, advertencias y fuentes los arma `render_itinerario`).
+- `enot/prompts/`: prompts de sistema `relevamiento.md`, `planificador.md`, `respuesta.md` y `cargar(nombre)`.
+- `enot/trazas.py`: `Traza` (un JSONL por conversación en `data/trazas/`) y `EventoTraza` (nodo, intento, proveedor,
+  modelo, inicio UTC, latencia, tokens, intentos de validación, estado, error). Errores del cliente → `ErrorNodo`.
+- ADR-0014 (propuesto). Spec 004.
+- 47 tests nuevos (254 → 301), ningún test existente modificado; uno corre la muestra real de DATAtourisme por el
+  contexto del planificador. Mutation (no obligatorio): `enot/nodos.py` 540/565 (96%), `enot/trazas.py` 33/38 (87%).
+
 ## 2026-11-24 · noche/2026-11-24-003 · retrieval híbrido y su evaluación
 - `enot/retrieval.py`: filtros duros por perfil (`filtrar`, `motivo_exclusion`) con las reglas del verificador
   evaluadas por visita posible; BM25 propio; embeddings inyectables (`EmbedderOpenAI` + `EmbedderConCache` en
