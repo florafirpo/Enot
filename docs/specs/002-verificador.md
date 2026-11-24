@@ -1,7 +1,7 @@
 # Spec 002: Verificador de restricciones duras
 
 **Ítem del backlog:** 002 · **Rama:** `noche/2026-11-24-002` (sale de `noche/2026-11-23-001`, todavía sin
-aprobar) · **ADRs relacionados:** ADR-0003, ADR-0005, ADR-0007
+aprobar) · **ADRs relacionados:** ADR-0003, ADR-0005, ADR-0007, ADR-0009 (nuevo)
 
 ## Qué se va a hacer
 El nodo `verificador` del workflow (ADR-0003): código puro que recibe un itinerario, el perfil del viaje y

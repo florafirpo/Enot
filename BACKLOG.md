@@ -19,7 +19,7 @@ el agente trabaja sobre la rama de ese PR y lo aclara en la descripción.
   - Aceptación: tests de bordes (abre 10:00 y la visita empieza 9:59; cruza el cierre por 1 minuto; bodega
     sin coordenadas). Mutation testing sobre `enot/tools/` ≥ 80%.
 
-- [ ] **002 · Verificador de restricciones duras** (24/11)
+- [~] **002 · Verificador de restricciones duras** (24/11) · rama `noche/2026-11-24-002` (sale de la de 001)
   - `enot/verificador.py`: `verificar(itinerario, perfil, corpus) -> list[Violacion]` con tipos: bodega
     inexistente, cerrada en ese horario, traslado imposible (no entra entre paradas), jornada excedida,
     presupuesto excedido, grupo mayor a capacidad, restricción alimentaria o de accesibilidad no declarada,
