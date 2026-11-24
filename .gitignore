@@ -1,0 +1,18 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+# El crudo pesa y se regenera con `crawl`; versionamos semilla, limpio, fichas y reportes.
+data/raw/
+# El CSV regional de DATAtourisme pesa decenas de MB: se baja con el README.
+data/datatourisme/*
+!data/datatourisme/.gitkeep
+!data/datatourisme/muestra.csv
+# mutation testing
+mutants/
+.mutmut-cache
+# datos generados (se regeneran con el pipeline); las fichas y el set de eval sí se versionan
+data/base/
+data/clean/
+data/indice/
+data/trazas/

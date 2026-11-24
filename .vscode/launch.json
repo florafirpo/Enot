@@ -1,0 +1,101 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "1. datatourisme (Borgoña)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "datatourisme",
+        "data/datatourisme/datatourisme-reg-bfc.csv"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "1'. seed con Google Places (alternativa)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "seed"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "2. crawl opcional (prueba: 10 bodegas)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "crawl",
+        "--limite",
+        "10"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "3. clean",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "clean"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "4a. extract --dry-run",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "extract",
+        "--dry-run"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "4b. extract (prueba: 5 bodegas)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "extract",
+        "--limite",
+        "5"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "5a. eda",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "eda"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "5b. muestra para validar",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "corpus",
+      "args": [
+        "muestra",
+        "--n",
+        "30"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+[project]
+name = "enot"
+version = "0.1.0"
+description = "Agente de rutas de enoturismo en Borgoña (TP IA Agéntica, Maestría UBA)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["mutants", ".venv"]
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501", "B008", "E741"]
+
+[tool.mutmut]
+source_paths = ["enot/", "corpus/", "eval/"]
+pytest_add_cli_args_test_selection = ["tests/"]

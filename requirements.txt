@@ -1,0 +1,15 @@
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.0
+pdfplumber>=0.11
+pydantic>=2.6
+python-dotenv>=1.0
+pandas>=2.1
+openai>=1.40
+anthropic>=0.34
+# Opcional, para webs que arman el contenido con JavaScript (crawl --playwright):
+# playwright>=1.45   y después: playwright install chromium
+# desarrollo y sensores (ADR-0008)
+pytest>=8.0
+ruff>=0.6
+mutmut>=3.0
