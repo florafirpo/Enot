@@ -55,8 +55,9 @@ def _llamar(cliente, traza: Traza, nodo: NodoLLM, usuario: str, modelo: Type[Bas
     try:
         r = cliente.estructurado(prompts.cargar(nodo), usuario, modelo)
     except Exception as e:  # noqa: BLE001 — errores del proveedor o de validación: se registran y se tipifican
-        traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0, tokens_in=0, tokens_out=0,
-                                    intentos_validacion=0, estado="error", error=str(e)[:500]))
+        # tokens e intentos quedan en None (desconocidos): ClienteLLM no los informa cuando lanza
+        traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0, tokens_in=None, tokens_out=None,
+                                    intentos_validacion=None, estado="error", error=str(e)[:500]))
         raise ErrorNodo(nodo, e) from e
     traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0, tokens_in=r.tokens_in,
                                 tokens_out=r.tokens_out, intentos_validacion=r.intentos, estado="ok"))

@@ -27,9 +27,10 @@ class EventoTraza(BaseModel):
     modelo: str
     inicio: str = Field(description="ISO 8601, UTC")
     latencia_s: float = Field(ge=0)
-    tokens_in: int = Field(ge=0)
-    tokens_out: int = Field(ge=0)
-    intentos_validacion: int = Field(ge=0, description="Llamadas que hizo ClienteLLM hasta validar el esquema")
+    # None = desconocido: si el cliente falla, puede haber hecho llamadas pagas que no informa. Nunca 0 inventado.
+    tokens_in: Optional[int] = Field(None, ge=0)
+    tokens_out: Optional[int] = Field(None, ge=0)
+    intentos_validacion: Optional[int] = Field(None, ge=0, description="Llamadas que hizo ClienteLLM hasta validar")
     estado: Literal["ok", "error"]
     error: Optional[str] = None
 
