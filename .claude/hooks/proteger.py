@@ -9,6 +9,8 @@ Políticas:
 2. La partición de test `data/eval/test/` no se modifica una vez creada (ADR-0007).
 3. Nunca pushear a `main`, ni forzar un push.
 4. Nada de borrados recursivos fuera de carpetas temporales.
+5. Las revisiones del compañero (`docs/revisiones/`) no se editan una vez escritas (ADR-0010):
+   el desarrollador no puede retocar el veredicto de su revisor.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 TEST_DIR = (RAIZ / "data" / "eval" / "test").resolve()
+REVISIONES_DIR = (RAIZ / "docs" / "revisiones").resolve()
 
 
 def bloquear(motivo: str) -> None:
@@ -31,12 +34,20 @@ def es_env(ruta: str) -> bool:
     return nombre == ".env" or (nombre.startswith(".env.") and nombre != ".env.example")
 
 
-def dentro_de_test(ruta: str) -> bool:
+def _resolver(ruta: str) -> Path | None:
     try:
-        p = (RAIZ / ruta).resolve() if not Path(ruta).is_absolute() else Path(ruta).resolve()
+        return (RAIZ / ruta).resolve() if not Path(ruta).is_absolute() else Path(ruta).resolve()
     except OSError:
-        return False
-    return p == TEST_DIR or TEST_DIR in p.parents
+        return None
+
+
+def dentro_de(ruta: str, carpeta: Path) -> bool:
+    p = _resolver(ruta)
+    return p is not None and (p == carpeta or carpeta in p.parents)
+
+
+def dentro_de_test(ruta: str) -> bool:
+    return dentro_de(ruta, TEST_DIR)
 
 
 def revisar(tool: str, entrada: dict) -> str | None:
@@ -51,6 +62,12 @@ def revisar(tool: str, entrada: dict) -> str | None:
         if p.exists():
             return "la partición de test (data/eval/test/) es inmutable una vez creada (ADR-0007)."
 
+    if tool in {"Edit", "Write", "MultiEdit"} and ruta and dentro_de(ruta, REVISIONES_DIR):
+        p = (RAIZ / ruta) if not Path(ruta).is_absolute() else Path(ruta)
+        if p.exists():
+            return ("las revisiones del compañero no se editan (ADR-0010): "
+                    "si hace falta otra, va en un archivo nuevo de la ronda siguiente.")
+
     if tool == "Bash":
         cmd = entrada.get("command", "")
         if re.search(r"(^|[\s;&|])(cat|less|more|head|tail|source|\.)\s+[^\s;&|]*\.env(\s|$)", cmd):
@@ -63,6 +80,8 @@ def revisar(tool: str, entrada: dict) -> str | None:
             return "borrado recursivo bloqueado; si es necesario, pedíselo a Flora en el PR."
         if re.search(r"data/eval/test", cmd) and re.search(r"(>|\brm\b|\bmv\b|\bsed\s+-i)", cmd):
             return "la partición de test es inmutable (ADR-0007)."
+        if re.search(r"docs/revisiones/\S+", cmd) and re.search(r"(\bsed\s+-i|\brm\b|\bmv\b|>>?\s*\S*docs/revisiones/)", cmd):
+            return "las revisiones del compañero no se modifican (ADR-0010)."
     return None
 
 

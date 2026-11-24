@@ -1,15 +1,16 @@
 # BACKLOG
 
-Entrega y exposición: **3/12/2026**. El agente nocturno toma el **primer ítem `[ ]`** de la lista,
-lo pasa a `[~]` en su rama y abre un PR. Flora lo pasa a `[x]` al aprobar el PR.
-Estados: `[ ]` pendiente · `[~]` en PR · `[x]` aprobado · `[!]` bloqueado (ver PR).
+Entrega y exposición: **3/12/2026**. Cada 7 horas el agente desarrollador toma el **primer ítem `[ ]`**
+(después de lo que pida `docs/feedback-flora.md`), lo hace en una rama que sale de `desarrollo` y, si el
+agente `companero` lo aprueba, lo integra a `desarrollo`. Flora integra `desarrollo` a `main` (ADR-0010).
+Estados: `[ ]` pendiente · `[~]` en una rama, sin integrar · `[x]` integrado a `desarrollo` · `[!]` bloqueado
+(ver el reporte de la corrida y `docs/feedback-flora.md`).
 
-Cada ítem respeta los ADRs. Si un ítem necesita algo de un ítem anterior que todavía no está aprobado,
-el agente trabaja sobre la rama de ese PR y lo aclara en la descripción.
+Cada ítem respeta los ADRs.
 
 ---
 
-- [~] **001 · Modelos de dominio y tools determinísticas** (noche del 23/11) · rama `noche/2026-11-23-001`
+- [x] **001 · Modelos de dominio y tools determinísticas** (noche del 23/11) · rama `noche/2026-11-23-001` (PR revisado por Flora)
   - `enot/modelos.py`: `Bodega` (se construye desde una línea de `fichas.jsonl` + `_meta`), `PerfilViaje`,
     `Parada`, `DiaItinerario`, `Itinerario`. Pydantic, con validaciones (horas HH:MM, días válidos).
   - `enot/corpus_local.py`: carga `data/fichas/fichas.jsonl` → `dict[id, Bodega]`.
@@ -19,13 +20,29 @@ el agente trabaja sobre la rama de ese PR y lo aclara en la descripción.
   - Aceptación: tests de bordes (abre 10:00 y la visita empieza 9:59; cruza el cierre por 1 minuto; bodega
     sin coordenadas). Mutation testing sobre `enot/tools/` ≥ 80%.
 
-- [~] **002 · Verificador de restricciones duras** (24/11) · rama `noche/2026-11-24-002` (sale de la de 001)
+- [x] **002 · Verificador de restricciones duras** (24/11) · rama `noche/2026-11-24-002` (PR #1; integrado a `desarrollo` antes de que existiera el compañero)
   - `enot/verificador.py`: `verificar(itinerario, perfil, corpus) -> list[Violacion]` con tipos: bodega
     inexistente, cerrada en ese horario, traslado imposible (no entra entre paradas), jornada excedida,
     presupuesto excedido, grupo mayor a capacidad, restricción alimentaria o de accesibilidad no declarada,
     idioma no disponible. Cada violación trae un mensaje accionable para el planificador.
   - Usa las tools de 001 (una sola fuente de verdad).
   - Aceptación: por cada tipo, un test que lo detecta y uno que no lo confunde. Mutation ≥ 80%.
+
+- [ ] **010 · Datos faltantes del turista: advertencias en vez de violaciones** (24/11; sale de lo que dijo Flora el 24/11, ver `docs/feedback-flora.md`)
+  - DATAtourisme casi nunca publica accesibilidad ni dieta. Con ADR-0009 tal como está, cualquier pedido con
+    esas necesidades da cero bodegas.
+  - Sacar `restricciones_alimentarias` de `PerfilViaje` y del verificador (fuera de alcance: en Borgoña la
+    visita es una cata, no una comida). Actualizar el PRD (sección de alcance) y quitar el tipo
+    `restriccion_alimentaria`.
+  - Accesibilidad: si la ficha dice `False`, es violación; si no hay dato, **advertencia** ("no pude confirmar…").
+  - Idioma: el francés se da por cumplido en todas las bodegas. Otros idiomas: si la bodega publica idiomas y
+    no está el pedido, violación; si no publica ninguno, advertencia.
+  - `verificar` devuelve violaciones y advertencias por separado (las advertencias no disparan reintento
+    del planificador; van a la respuesta al turista). ADR nuevo que reemplaza la parte correspondiente de
+    ADR-0009 (ADR-0009 pasa a "Reemplazado parcialmente por …"). Los tests de 002 que cambien de sentido se
+    justifican en el reporte y van en un commit separado (AGENTS.md).
+  - Aceptación: por cada caso (dato `False`, dato ausente, francés, otro idioma con y sin lista publicada) un
+    test. Mutation sobre `enot/verificador.py` ≥ 80%.
 
 - [ ] **003 · Retrieval híbrido y su evaluación** (25/11)
   - `enot/retrieval.py`: filtros duros por perfil + BM25 + embeddings + RRF (ADR-0004).
@@ -78,6 +95,11 @@ el agente trabaja sobre la rama de ese PR y lo aclara en la descripción.
   - Aceptación: `docker build` y `make check` pasan; el README se puede seguir en una máquina limpia.
 
 ---
+
+## Tareas de Flora
+- **Cada 7 horas (cuando pueda):** leer el último `docs/noches/*.md` y su revisión en `docs/revisiones/`;
+  escribir pedidos o decisiones en `docs/feedback-flora.md` (desde la web de GitHub, rama `desarrollo`);
+  cuando `desarrollo` esté bien, abrir un PR `desarrollo → main` y mergearlo.
 
 ## Tareas de Flora (de día)
 - 24/11: bajar el CSV de DATAtourisme, `make datatourisme`, `make extract` con su clave, subir

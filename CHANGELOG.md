@@ -2,6 +2,20 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-24 · desarrollo · agente compañero revisor, rama de integración y registro obligatorio
+- `.claude/agents/companero.md`: agente revisor que conoce las clases y la consigna; corre los sensores por su
+  cuenta y devuelve APROBADO / CAMBIOS / ESCALAR A FLORA. Sin herramientas de edición.
+- `docs/catedra/`: consigna, explicaciones de las clases del 20/08, 01/10, 08/10, 05/11 y 12/11, y
+  `lineamientos.md` (rúbrica destilada con citas).
+- Skill `tarea-nocturna` reescrita: corrida cada 7 h, `docs/feedback-flora.md` primero, hasta 3 rondas de
+  revisión, merge `--no-ff` a `desarrollo` solo con APROBADO. `main` sigue siendo de Flora.
+- Registro obligatorio en todo cambio (pedido de Flora): CHANGELOG + ADR nuevo, verificado por
+  `scripts/registro_obligatorio.py` (`make registro`); `AGENTS.md` actualizado.
+- Hook: las revisiones en `docs/revisiones/` no se editan. `make tests-modificados` compara contra `desarrollo`.
+- BACKLOG: 001 y 002 integrados; ítem nuevo 010 (datos faltantes del turista como advertencias). ADR-0010;
+  ADR-0008 queda modificado por ADR-0010.
+- 13 tests nuevos (`tests/test_hooks.py`, `tests/test_registro_obligatorio.py`).
+
 ## 2026-11-24 · noche/2026-11-24-002 (sale de noche/2026-11-23-001)
 - `enot/verificador.py`: `verificar(itinerario, perfil, corpus) -> list[Violacion]` con 10 tipos (los del backlog,
   con alimentaria y accesibilidad separadas, más `experiencia_inexistente`), mensajes accionables y orden

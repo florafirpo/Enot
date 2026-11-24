@@ -3,7 +3,7 @@ PY ?= python
 MODULO ?= enot/verificador.py
 DT_CSV ?= data/datatourisme/datatourisme-reg-bfc.csv
 
-.PHONY: install check test lint mutation tests-modificados datatourisme extract eda
+.PHONY: install check test lint mutation tests-modificados registro datatourisme extract eda
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -27,9 +27,15 @@ mutation:
 	@echo "Sobrevivientes (revisar con: mutmut show <nombre>):"
 	@mutmut results 2>/dev/null | grep "$(PATRON)" | grep survived || echo "  ninguno"
 
-# Lista tests que ya existían en main y fueron modificados en esta rama
+BASE ?= origin/desarrollo
+
+# Lista tests que ya existían en la base y fueron modificados en esta rama
 tests-modificados:
-	$(PY) scripts/tests_modificados.py
+	$(PY) scripts/tests_modificados.py $(BASE)
+
+# Registro obligatorio: entrada de CHANGELOG + ADR nuevo en la rama (ADR-0010)
+registro:
+	$(PY) scripts/registro_obligatorio.py $(BASE)
 
 datatourisme:
 	$(PY) -m corpus datatourisme $(DT_CSV)

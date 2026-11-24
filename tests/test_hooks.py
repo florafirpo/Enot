@@ -53,3 +53,30 @@ def test_el_script_sale_con_codigo_2_al_bloquear():
     r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(
         {"tool_name": "Read", "tool_input": {"file_path": ".env"}}), capture_output=True, text=True)
     assert r.returncode == 2 and "BLOQUEADO" in r.stderr
+
+
+def test_revisiones_del_companero_no_se_editan(monkeypatch, tmp_path):
+    rev = tmp_path / "docs/revisiones"
+    rev.mkdir(parents=True)
+    (rev / "003-ronda-1.md").write_text("**Veredicto:** CAMBIOS")
+    monkeypatch.setattr(proteger, "RAIZ", tmp_path)
+    monkeypatch.setattr(proteger, "REVISIONES_DIR", rev.resolve())
+    for tool in ("Edit", "Write", "MultiEdit"):
+        assert proteger.revisar(tool, {"file_path": "docs/revisiones/003-ronda-1.md"}) is not None
+    # la ronda siguiente es un archivo nuevo y se permite
+    assert proteger.revisar("Write", {"file_path": "docs/revisiones/003-ronda-2.md"}) is None
+    # otros docs se editan normalmente
+    assert proteger.revisar("Edit", {"file_path": "docs/noches/2026-11-24.md"}) is None
+
+
+@pytest.mark.parametrize("cmd", [
+    "sed -i 's/CAMBIOS/APROBADO/' docs/revisiones/003-ronda-1.md",
+    "rm docs/revisiones/003-ronda-1.md",
+    "echo APROBADO > docs/revisiones/003-ronda-1.md",
+])
+def test_revisiones_no_se_tocan_por_shell(cmd):
+    assert proteger.revisar("Bash", {"command": cmd}) is not None
+
+
+def test_git_add_de_una_revision_se_permite():
+    assert proteger.revisar("Bash", {"command": "git add docs/revisiones/003-ronda-2.md"}) is None

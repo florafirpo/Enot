@@ -1,6 +1,6 @@
 # ADR-0008: Desarrollo con un agente nocturno bajo spec → tests → código, sensores y hooks
 
-**Estado:** Aceptado
+**Estado:** Aceptado · modificado por ADR-0010 (revisión por el agente compañero y rama `desarrollo`)
 **Fecha:** 2026-11-23
 **Decide:** Flora
 
