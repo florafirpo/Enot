@@ -44,7 +44,7 @@ Cada ítem respeta los ADRs.
   - Aceptación: por cada caso (dato `False`, dato ausente, francés, otro idioma con y sin lista publicada) un
     test. Mutation sobre `enot/verificador.py` ≥ 80%.
 
-- [ ] **003 · Retrieval híbrido y su evaluación** (25/11)
+- [~] **003 · Retrieval híbrido y su evaluación** (25/11) · rama `noche/2026-11-24-003`
   - `enot/retrieval.py`: filtros duros por perfil + BM25 + embeddings + RRF (ADR-0004).
     El embedder es inyectable; en tests, un embedder falso determinístico. El real (multilingüe) se
     configura en `.env` y se cachea en `data/indice/`.
