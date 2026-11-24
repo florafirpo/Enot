@@ -14,6 +14,12 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (24/11, ítem 010) ¿Sumar al ítem 007 la métrica "advertencias promedio por itinerario, por tipo" junto al hard
+  pass rate? Con ADR-0012 un itinerario factible puede llevar advertencias; sin esa métrica, H1 esconde la
+  incertidumbre (hallazgo menor del compañero, `docs/revisiones/010-ronda-1.md`). Recomendación: sí. Además,
+  la próxima corrida marca la spec 002 como reemplazada en parte por la 010 (prolijidad).
+- (24/11, ítem 010) Dieta fuera de alcance (en vez de dejarla como advertencia) y ADR-0012 en "Propuesto":
+  aceptarlos o decir qué cambiar.
 - (24/11) `experiencia_inexistente` (ítem 002): se agregó un tipo de violación que no estaba en el backlog,
   para que una experiencia inventada por el planificador no esquive el chequeo de presupuesto.
   Recomendación: aceptarlo. Si Flora no lo quiere, lo dice acá.
