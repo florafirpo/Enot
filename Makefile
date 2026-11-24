@@ -18,8 +18,14 @@ test:
 check: lint test
 
 # Mutation testing sobre un módulo: ¿los tests detectarían un error? (ADR-0008)
+PATRON = $(subst /,.,$(basename $(MODULO)))
 mutation:
-	mutmut run "$(subst /,.,$(basename $(MODULO)))*" ; mutmut results
+	rm -rf mutants
+	-mutmut run "$(PATRON)*" > /dev/null 2>&1
+	@echo "Resultado para $(PATRON):"
+	@mutmut results --all true 2>/dev/null | grep "$(PATRON)" | awk -F': ' '{print $$2}' | sort | uniq -c
+	@echo "Sobrevivientes (revisar con: mutmut show <nombre>):"
+	@mutmut results 2>/dev/null | grep "$(PATRON)" | grep survived || echo "  ninguno"
 
 # Lista tests que ya existían en main y fueron modificados en esta rama
 tests-modificados:
