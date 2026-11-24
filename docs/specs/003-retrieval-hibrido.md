@@ -32,6 +32,7 @@ class Indice:
     def __init__(self, bodegas: Iterable[Bodega], embedder: Embedder)
     def buscar(self, perfil: PerfilViaje | None, k: int = 10, consulta: str | None = None,
                top_por_metodo: int | None = None) -> list[Candidata]
+    def zonas_desconocidas(self, perfil: PerfilViaje) -> list[str]   # zonas pedidas que no están en el corpus
 
 # eval/retrieval.py
 class ConsultaEtiquetada(BaseModel): id: str; consulta: str; perfil: PerfilViaje | None; relevantes: dict[str, int]
@@ -49,7 +50,7 @@ aceptaría.
 | Regla | Excluye | No excluye |
 |---|---|---|
 | `bodegas_evitar` | id o nombre coincide (sin mayúsculas) | — |
-| `zonas_preferidas` (si hay) | zona distinta (sin mayúsculas ni tildes) | zona en la lista |
+| `zonas_preferidas` (si hay) | la zona de la bodega no coincide con ninguna pedida | las palabras de alguna zona pedida están todas en la zona de la bodega, sin mayúsculas ni tildes ("Chablis" → "Chablis y Grand Auxerrois") |
 | capacidad | `personas > capacidad_max_grupo` | igual, o capacidad sin dato |
 | accesibilidad (si `movilidad_reducida`) | `False` | `True` o sin dato |
 | idioma (si pide alguno y no es francés) | publica idiomas (bodega o alguna experiencia) y ninguno pedido está | sin lista publicada |
@@ -108,7 +109,12 @@ aparece dentro de `top`. Empates: por id (determinístico).
   `test_filtro_capacidad`, `test_filtro_accesibilidad`, `test_filtro_idioma`, `test_filtro_dias`,
   `test_filtro_presupuesto`, `test_filtro_idioma_y_presupuesto_juntos`, `test_sin_perfil_no_filtra`, `test_motivo_exclusion_explica`.
 - `test_filtros_coinciden_con_el_verificador` — una bodega que pasa los filtros no da violación de capacidad,
-  accesibilidad, idioma ni presupuesto en una visita a la experiencia más barata; una excluida sí.
+  accesibilidad, idioma ni presupuesto: existe alguna visita (sin experiencia o con cada experiencia) sin violaciones
+  de esas reglas si y solo si el filtro la deja pasar.
+- (ronda 2) `test_filtro_zona_por_palabras` — "Chablis", "nuits" y "Grand Auxerrois" encuentran su zona; "Côte" a secas
+  matchea todas las "Côte …"; "Jura" ninguna. `test_zonas_desconocidas` — `Indice.zonas_desconocidas(perfil)` devuelve
+  las zonas pedidas que no coinciden con ninguna del corpus (para que el flujo diga "no reconozco la zona X" en vez de
+  presentar el pedido como infactible). `test_buscar_k_por_defecto_es_10`.
 - `test_texto_bodega_incluye_lo_indexable`, `test_consulta_desde_perfil`.
 - `test_buscar_combina_bm25_y_embeddings` — una bodega que solo coincide por palabra y otra que solo coincide por
   sinónimo aparecen; la que coincide en ambos sale primera.
