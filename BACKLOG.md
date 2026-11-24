@@ -52,7 +52,7 @@ Cada ítem respeta los ADRs.
   - Aceptación: RRF con el ejemplo de clase (A, B, C con c=60 → B primero); los filtros excluyen lo que
     deben; métricas con casos calculados a mano.
 
-- [~] **004 · Nodos con LLM: relevamiento, planificador y respuesta** (26/11) · rama `noche/2026-11-24-004`
+- [x] **004 · Nodos con LLM: relevamiento, planificador y respuesta** (26/11) · rama `noche/2026-11-24-004` (aprobado por companero en ronda 2)
   - `enot/nodos.py`: `relevar(historial) -> PerfilViaje | Pregunta`, `planificar(perfil, candidatas,
     violaciones_previas) -> Itinerario`, `responder(itinerario, perfil) -> str`. Prompts en `enot/prompts/`.
   - Todas las llamadas pasan por `ClienteLLM` (ADR-0006) y quedan en una traza JSONL (`data/trazas/`).
