@@ -61,3 +61,9 @@ def test_evento_traza_valida_campos():
         evento(tokens_in=-1)
     with pytest.raises(ValidationError):
         evento(intento=0)
+
+
+def test_traza_crea_carpetas_anidadas(tmp_path):
+    t = Traza(tmp_path / "a" / "b" / "c" / "x.jsonl")
+    t.registrar(evento(error="Côte de Nuits — ñ"))
+    assert t.eventos()[0].error == "Côte de Nuits — ñ"
