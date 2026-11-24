@@ -530,3 +530,53 @@ def test_detecta_varias_en_la_misma_parada(corpus):
     v = verificar(un_dia(parada("a", "10:00")), p, corpus)
     assert sorted(tipos(v)) == ["accesibilidad", "grupo_excede_capacidad", "idioma_no_disponible"]
     assert all(x.bodega_id == "a" and x.dia == 1 and x.mensaje for x in v)
+
+
+# --- casos encontrados con mutation testing ---------------------------------------------
+
+def test_despues_de_una_inexistente_se_siguen_chequeando_las_demas(corpus):
+    corpus["b"] = corpus["b"].model_copy(update={"capacidad_max_grupo": 1})
+    v = verificar(un_dia(parada("fantasma", "10:00"), parada("b", "12:00")), perfil(), corpus)
+    assert tipos(v) == ["bodega_inexistente", "grupo_excede_capacidad"]
+
+
+def test_presupuesto_usa_la_experiencia_elegida(corpus):
+    # la más barata de "a" cuesta 20, pero se eligió el almuerzo de 50
+    it = un_dia(parada("a", "11:00", 120, "Déjeuner"))
+    assert tipos(verificar(it, perfil(presupuesto_max_por_persona=20), corpus)) == ["presupuesto_excedido"]
+
+
+def test_mensaje_de_traslado_sugiere_la_hora(corpus):
+    m = minutos_traslado(corpus, "a", "b")
+    [v] = verificar(un_dia(parada("a", "10:00", 60), parada("b", "11:00")), perfil(), corpus)
+    assert a_hora(a_minutos("11:00") + m) in v.mensaje
+
+
+def test_mensaje_de_superposicion(corpus):
+    [v] = verificar(un_dia(parada("a", "10:00", 60), parada("sin-coord", "10:30")), perfil(), corpus)
+    assert v.bodega_id == "sin-coord"
+    assert "10:30" in v.mensaje and "11:00" in v.mensaje and "sin-coord" in v.mensaje
+
+
+def test_mensaje_de_accesibilidad_nombra_la_bodega(corpus):
+    corpus["a"] = corpus["a"].model_copy(update={"accesible_movilidad_reducida": None})
+    [v] = verificar(un_dia(parada("a", "10:00")), perfil(movilidad_reducida=True), corpus)
+    assert "[SINTÉTICA] a" in v.mensaje and "accesib" in v.mensaje
+
+
+def test_mensaje_de_idioma_nombra_la_experiencia_o_la_bodega(corpus):
+    [v] = verificar(un_dia(parada("a", "12:00", 60, "Déjeuner")), perfil(idiomas=["en", "de"]), corpus)
+    assert "Déjeuner" in v.mensaje and "en, de" in v.mensaje
+    corpus["b"] = corpus["b"].model_copy(update={"idiomas": []})
+    [v] = verificar(un_dia(parada("b", "10:00", 60, "Visite")), perfil(idiomas=["en"]), corpus)
+    assert "Visite" not in v.mensaje and "[SINTÉTICA] b" in v.mensaje and "ninguno" in v.mensaje
+    corpus["b"] = corpus["b"].model_copy(update={"idiomas": ["fr", "de"]})
+    [v] = verificar(un_dia(parada("b", "10:00")), perfil(idiomas=["en"]), corpus)
+    assert "fr, de" in v.mensaje
+
+
+def test_mensaje_de_experiencia_inexistente_lista_las_publicadas(corpus):
+    [v] = verificar(un_dia(parada("a", "10:00", 60, "Globo")), perfil(), corpus)
+    assert "Dégustation, Déjeuner" in v.mensaje
+    [v] = verificar(un_dia(parada("sin-horario", "10:00", 60, "Globo")), perfil(), corpus)
+    assert "ninguna" in v.mensaje
