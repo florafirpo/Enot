@@ -9,7 +9,7 @@ el agente trabaja sobre la rama de ese PR y lo aclara en la descripción.
 
 ---
 
-- [ ] **001 · Modelos de dominio y tools determinísticas** (noche del 23/11)
+- [~] **001 · Modelos de dominio y tools determinísticas** (noche del 23/11) · rama `noche/2026-11-23-001`
   - `enot/modelos.py`: `Bodega` (se construye desde una línea de `fichas.jsonl` + `_meta`), `PerfilViaje`,
     `Parada`, `DiaItinerario`, `Itinerario`. Pydantic, con validaciones (horas HH:MM, días válidos).
   - `enot/corpus_local.py`: carga `data/fichas/fichas.jsonl` → `dict[id, Bodega]`.

@@ -2,6 +2,15 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-23 · noche/2026-11-23-001
+- `enot/modelos.py`: `Bodega` (desde `fichas.jsonl`), `PerfilViaje`, `Parada`, `DiaItinerario`, `Itinerario`,
+  con validación de horas HH:MM y de rangos.
+- `enot/corpus_local.py`: carga del corpus tolerante a líneas inválidas.
+- `enot/tools/`: `tiempo_traslado`, `abierta_en`, `costo_experiencias` (errores como valor). ADR-0005.
+- Fixture sintética `tests/fixtures/fichas_sinteticas.jsonl`; 37 tests nuevos; mutation sobre `enot/tools`:
+  146/152 mutantes muertos (96%).
+- `make mutation` muestra el resumen del módulo.
+
 ## 2026-11-23 · setup inicial (main)
 - Pipeline del corpus (`corpus/`): adaptador DATAtourisme para Borgoña, crawl y limpieza opcionales,
   extracción de fichas con LLM y verificación de citas, EDA y validación manual.
