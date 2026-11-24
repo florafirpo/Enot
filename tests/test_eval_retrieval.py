@@ -182,3 +182,19 @@ def test_main_usa_perfil_k_y_carpetas(tmp_path, monkeypatch):
     assert datos["por_consulta"][0]["recuperados"]
     assert all(zonas[i] == "Côte de Beaune" for i in datos["por_consulta"][0]["recuperados"])  # usó el perfil
     assert len(datos["por_consulta"][0]["recuperados"]) < len(zonas)
+
+
+def test_main_k_por_defecto_y_recuperados_cortados(tmp_path, monkeypatch):
+    from corpus import config
+
+    monkeypatch.setattr(config, "FICHAS_JSONL", FIXTURES / "fichas_sinteticas.jsonl")
+    monkeypatch.setattr(config, "REPORTS_DIR", tmp_path / "reports")
+    consultas = tmp_path / "consultas.jsonl"
+    consultas.write_text(json.dumps({"id": "q1", "consulta": "Pommard", "relevantes": ["sint-pommard"]}) + "\n",
+                         encoding="utf-8")
+    assert main([str(consultas)], embedder=EmbedderFalso()) == 0
+    reporte = next((tmp_path / "reports").glob("retrieval_*.json"))
+    assert json.loads(reporte.read_text(encoding="utf-8"))["k"] == 10
+    assert main([str(consultas), "--k", "2"], embedder=EmbedderFalso()) == 0
+    datos = json.loads(reporte.read_text(encoding="utf-8"))
+    assert len(datos["por_consulta"][0]["recuperados"]) == 2   # sin perfil quedan 7 candidatas: se cortan en k

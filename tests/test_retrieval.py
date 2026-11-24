@@ -620,3 +620,32 @@ def test_embedder_openai_arma_el_cliente_con_la_url_de_env(monkeypatch):
 def test_solo_una_experiencia_sin_precio_cumple_idioma_y_presupuesto():
     b = bodega("b", idiomas=["de"], experiencias=[exp("A", 10, idiomas=["de"]), exp("B", None, None, idiomas=["en"])])
     assert motivo_exclusion(b, perfil(idiomas=["en"], presupuesto_max_por_persona=0)) is None
+
+
+# --- revisión ronda 1 ------------------------------------------------------------------------
+
+def test_filtro_zona_por_palabras():
+    bs = [bodega("nuits", zona="Côte de Nuits"), bodega("beaune", zona="Côte de Beaune"),
+          bodega("chablis", zona="Chablis y Grand Auxerrois"), bodega("hautes", zona="Hautes-Côtes"),
+          bodega("sin", zona="")]
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["Chablis"]))) == ["chablis"]
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["grand auxerrois"]))) == ["chablis"]
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["nuits"]))) == ["nuits"]
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["Côte"]))) == ["nuits", "beaune"]
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["Jura"]))) == []
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["Chablis Côte de Nuits"]))) == []   # todas las palabras
+    assert ids(filtrar(bs, perfil(zonas_preferidas=["  "]))) == []
+
+
+def test_zonas_desconocidas(bodegas, embedder):
+    ind = Indice(bodegas, embedder)
+    p = perfil(zonas_preferidas=["Chablis", "Jura", "côte de nuits", "Beaujolais"])
+    assert ind.zonas_desconocidas(p) == ["Jura", "Beaujolais"]
+    assert ind.zonas_desconocidas(perfil()) == []
+    r = ind.buscar(perfil(zonas_preferidas=["Chablis"]), consulta="familiar")
+    assert [c.bodega_id for c in r] == ["ambas"]
+
+
+def test_buscar_k_por_defecto_es_10(embedder):
+    bs = [bodega(f"b{i:02d}", descripcion_breve="vino") for i in range(12)]
+    assert len(Indice(bs, embedder).buscar(None, consulta="vino")) == 10
