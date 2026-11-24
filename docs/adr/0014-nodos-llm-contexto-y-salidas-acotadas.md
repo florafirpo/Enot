@@ -38,7 +38,9 @@ Lo que estaba en juego:
    están en el itinerario se descartan.
 4. **Trazas.** `enot/trazas.py`: un JSONL por conversación en `data/trazas/`, un `EventoTraza` por llamada
    (nodo, intento del loop, proveedor, modelo, inicio UTC, latencia, tokens, intentos de validación, estado y
-   error). Los errores del cliente se registran y se relanzan como `ErrorNodo`, que dice qué nodo falló.
+   error). Los errores del cliente se registran y se relanzan como `ErrorNodo`, que dice qué nodo falló. En un
+   evento con error, tokens e intentos quedan en `None` (desconocidos), no en 0: `ClienteLLM` puede haber hecho
+   llamadas pagas antes de lanzar y no las informa (revisión 004 ronda 1).
 5. **Prompts** en `enot/prompts/*.md` (reglas en el mensaje de sistema); los datos van en el mensaje de usuario
    entre etiquetas (`<conversacion>`, `<candidatas>`, `<itinerario>`). En el texto del turista se neutralizan
    `<` y `>` para que no pueda cerrar la etiqueta.
@@ -55,8 +57,13 @@ Lo que estaba en juego:
 | Trazas con MLflow o Langfuse | Interfaz para consultar | Dependencia y servicio extra; D2.4 dice que lo que importa es qué se registra |
 
 ## Consecuencias
-- Todo número que ve el turista sale de las tools (ADR-0005), y el nodo de respuesta no puede contradecir al
-  verificador.
+- Todo número del detalle del itinerario (horarios, precios, traslados, total) sale de las tools (ADR-0005) y el
+  detalle no puede contradecir al verificador. La introducción y los motivos son texto libre del LLM: que no
+  traigan horarios ni precios lo pide solo el prompt `respuesta.md`, no lo controla el código (revisión 004 ronda 1).
+  Si en las pruebas aparecen números ahí, el próximo paso es un chequeo en código que descarte el motivo.
+- El costo de las llamadas que fallan no se mide: el evento queda con tokens `None`. Para medirlo, el error de
+  `ClienteLLM` tiene que traer los tokens consumidos (toca `corpus/llm.py`; anotado en el ítem 008). El reporte de
+  costos tiene que contar los eventos con tokens desconocidos en vez de sumarlos como 0.
 - Agregar candidatas hace crecer el contexto del planificador de forma cuadrática. Si en dev hace falta k > 15,
   hay que revisar esto: pasar a tools o mandar solo los pares de la misma zona.
 - Las preguntas fijas son poco naturales. Si las pruebas de Flora (26–27/11) muestran que molestan, el LLM puede
@@ -71,7 +78,7 @@ Lo que estaba en juego:
   `test_planificar_exige_cantidad_de_dias`, `test_modelo_salida_planificador_esquema`, `test_contexto_planificador_exacto`
   (decisión 2); `test_render_itinerario_exacto`, `test_responder_incluye_advertencias_aunque_el_llm_no`,
   `test_responder_usa_motivos_solo_de_paradas_del_itinerario` (decisión 3); `test_cada_nodo_registra_un_evento`,
-  `test_error_del_cliente_se_registra_y_relanza` (decisión 4); `test_relevar_mensaje_exacto_y_texto_del_turista_escapado`,
+  `test_error_del_cliente_se_registra_y_relanza` y `test_evento_traza_tokens_desconocidos` (decisión 4); `test_relevar_mensaje_exacto_y_texto_del_turista_escapado`,
   `test_contexto_planificador_ficha_es_dato` (decisión 5); `test_con_la_muestra_real_de_datatourisme` (formato real).
 - `tests/test_trazas.py`: escritura, lectura y validación de eventos.
 - Mutation testing sobre `enot/nodos.py` y `enot/trazas.py` (no obligatorio; resultados en el reporte de la corrida).

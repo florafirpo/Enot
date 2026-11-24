@@ -89,6 +89,8 @@ Cada ítem respeta los ADRs.
     `data/eval/anotacion_humana.csv` (lo completa Flora).
   - `eval/reporte.py`: tabla final (métricas por sistema, costo y latencia media y p95 desde las trazas)
     en `reports/resultados.md`.
+  - Llamadas fallidas (revisión 004 ronda 1): la traza las registra con tokens `None`. El reporte cuenta cuántas
+    hay en vez de sumarlas como 0; para medir su costo, que el error de `ClienteLLM` traiga los tokens consumidos.
   - Aceptación: Spearman y kappa con valores conocidos; el reporte se arma con trazas de ejemplo.
 
 - [ ] **009 · Cierre: README, Docker, interfaz mínima y guion** (1/12)

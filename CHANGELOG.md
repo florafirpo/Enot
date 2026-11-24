@@ -15,6 +15,9 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
 - ADR-0014 (propuesto). Spec 004.
 - 47 tests nuevos (254 → 301), ningún test existente modificado; uno corre la muestra real de DATAtourisme por el
   contexto del planificador. Mutation (no obligatorio): `enot/nodos.py` 540/565 (96%), `enot/trazas.py` 33/38 (87%).
+- Ronda 2 (revisión 004 ronda 1, CAMBIOS): en los eventos con error, tokens e intentos quedan en `None`
+  (desconocidos) y no en 0; ADR-0014 lo explica y aclara que introducción y motivos solo los restringe el prompt;
+  pendiente anotado en el ítem 008. 302 tests.
 
 ## 2026-11-24 · noche/2026-11-24-003 · retrieval híbrido y su evaluación
 - `enot/retrieval.py`: filtros duros por perfil (`filtrar`, `motivo_exclusion`) con las reglas del verificador
