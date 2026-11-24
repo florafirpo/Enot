@@ -1,13 +1,18 @@
-"""Verificador de restricciones duras (spec 002, ADR-0003).
+"""Verificador de restricciones duras (specs 002 y 010, ADR-0003).
 
-Código puro: recibe un itinerario, el perfil y el corpus, y devuelve las violaciones. Lista vacía =
-itinerario factible. Cada mensaje está escrito para que el planificador pueda corregir en el reintento.
+Código puro: recibe un itinerario, el perfil y el corpus, y devuelve las violaciones (y, con
+`verificar_completo`, también las advertencias). Sin violaciones = itinerario factible. Cada mensaje de
+violación está escrito para que el planificador pueda corregir en el reintento; cada advertencia, para
+mostrársela al turista.
 
 Usa las tools de `enot/tools/` para horarios, traslados y costos: una sola fuente de verdad (ADR-0005).
 
-Regla para lo que no se sabe (ver supuestos de la spec):
-- un *límite de la bodega* (horario, coordenadas, capacidad, precio) solo viola con evidencia del límite;
-- una *necesidad del turista* (accesibilidad, dieta, idioma) solo se cumple con evidencia positiva.
+Regla para lo que no se sabe:
+- un *límite de la bodega* (horario, coordenadas, capacidad, precio) solo viola con evidencia del límite
+  (ADR-0009);
+- una *necesidad del turista* (accesibilidad, idioma) viola con evidencia en contra (`False`, o una lista de
+  idiomas publicada sin el pedido) y, sin dato, genera una advertencia (ADR-0012). El francés se da por
+  cumplido en todas las bodegas.
 """
 from __future__ import annotations
 
@@ -18,22 +23,17 @@ from pydantic import BaseModel
 from .modelos import Bodega, Experiencia, Itinerario, Parada, PerfilViaje, a_hora, a_minutos
 from .tools import ItemCosto, abierta_en, costo_experiencias, tiempo_traslado
 
-__all__ = ["TIPOS_COMIDA", "TipoViolacion", "Violacion", "verificar"]
+__all__ = ["IDIOMA_BASE", "Advertencia", "ResultadoVerificacion", "TipoAdvertencia", "TipoViolacion",
+           "Violacion", "verificar", "verificar_completo"]
 
 TipoViolacion = Literal[
     "bodega_inexistente", "experiencia_inexistente", "cerrada", "traslado_imposible", "jornada_excedida",
-    "presupuesto_excedido", "grupo_excede_capacidad", "restriccion_alimentaria", "accesibilidad",
-    "idioma_no_disponible",
+    "presupuesto_excedido", "grupo_excede_capacidad", "accesibilidad", "idioma_no_disponible",
 ]
+TipoAdvertencia = Literal["accesibilidad_sin_confirmar", "idioma_sin_confirmar"]
 
-TIPOS_COMIDA = {"almuerzo", "cena", "picnic", "maridaje"}
-
-# restricción del perfil → campos de la bodega que la cubren (vegano declarado cubre vegetariano)
-_OPCIONES_DIETA = {
-    "sin_tacc": ("opciones_sin_tacc",),
-    "vegetariano": ("opciones_vegetarianas", "opciones_veganas"),
-    "vegano": ("opciones_veganas",),
-}
+# El francés se habla en todas las bodegas de Borgoña: formas en que el perfil puede nombrarlo.
+IDIOMA_BASE = frozenset({"fr", "fra", "fre", "francés", "frances", "français", "francais", "french"})
 
 
 class Violacion(BaseModel):
@@ -41,6 +41,24 @@ class Violacion(BaseModel):
     mensaje: str
     dia: Optional[int] = None
     bodega_id: Optional[str] = None
+
+
+class Advertencia(BaseModel):
+    """Una necesidad del turista que la ficha no permite confirmar ni descartar. No dispara reintento."""
+    tipo: TipoAdvertencia
+    mensaje: str
+    dia: Optional[int] = None
+    bodega_id: Optional[str] = None
+
+
+class ResultadoVerificacion(BaseModel):
+    violaciones: list[Violacion]
+    advertencias: list[Advertencia]
+
+    @property
+    def factible(self) -> bool:
+        """Las advertencias no cuentan: factible = sin violaciones."""
+        return not self.violaciones
 
 
 def _fin(p: Parada) -> int:
@@ -56,7 +74,7 @@ def _experiencia(b: Bodega, nombre: str) -> Optional[Experiencia]:
 
 
 def _chequear_parada(p: Parada, b: Bodega, dia: str, perfil: PerfilViaje, corpus: dict[str, Bodega],
-                     nueva) -> None:
+                     nueva, advertir) -> None:
     """Reglas que dependen de una sola parada (todo menos traslados, jornada y presupuesto)."""
     exp: Optional[Experiencia] = None
     if p.experiencia is not None:
@@ -76,29 +94,40 @@ def _chequear_parada(p: Parada, b: Bodega, dia: str, perfil: PerfilViaje, corpus
               f"{b.nombre} recibe grupos de hasta {b.capacidad_max_grupo} personas y el grupo es de "
               f"{perfil.personas}. Elegí otra bodega.")
 
-    if exp is not None and exp.tipo in TIPOS_COMIDA:
-        for r in perfil.restricciones_alimentarias:
-            if not any(getattr(b, campo) is True for campo in _OPCIONES_DIETA[r]):
-                nueva("restriccion_alimentaria",
-                      f"{b.nombre} no declara opciones {r} para {exp.nombre!r} ({exp.tipo}). "
-                      f"Elegí una experiencia sin comida u otra bodega.")
+    if perfil.movilidad_reducida:
+        if b.accesible_movilidad_reducida is False:
+            nueva("accesibilidad", f"{b.nombre} no es accesible para movilidad reducida. Elegí otra bodega.")
+        elif b.accesible_movilidad_reducida is None:
+            advertir("accesibilidad_sin_confirmar",
+                     f"no pude confirmar que {b.nombre} sea accesible para movilidad reducida: la bodega no lo "
+                     f"publica. Conviene consultarle antes de ir.")
 
-    if perfil.movilidad_reducida and b.accesible_movilidad_reducida is not True:
-        nueva("accesibilidad", f"{b.nombre} no declara accesibilidad para movilidad reducida. Elegí otra bodega.")
-
-    if perfil.idiomas:
+    pedidos = {i.casefold() for i in perfil.idiomas}
+    if pedidos and not pedidos & IDIOMA_BASE:
         disponibles = (exp.idiomas if exp is not None and exp.idiomas else None) or b.idiomas
-        pedidos = {i.casefold() for i in perfil.idiomas}
-        if not pedidos & {i.casefold() for i in disponibles}:
+        if not disponibles:
+            advertir("idioma_sin_confirmar",
+                     f"no pude confirmar que {b.nombre} reciba visitas en {', '.join(perfil.idiomas)}: no publica "
+                     f"idiomas (en francés, seguro). Conviene consultarle antes de ir.")
+        elif not pedidos & {i.casefold() for i in disponibles}:
             de = f"{exp.nombre!r} en {b.nombre}" if exp is not None and exp.idiomas else b.nombre
             nueva("idioma_no_disponible",
                   f"{de} no informa visitas en {', '.join(perfil.idiomas)} "
-                  f"(idiomas publicados: {', '.join(disponibles) or 'ninguno'}).")
+                  f"(idiomas publicados: {', '.join(disponibles)}).")
 
 
 def verificar(itinerario: Itinerario, perfil: PerfilViaje, corpus: dict[str, Bodega]) -> list[Violacion]:
-    """Devuelve las restricciones duras que el itinerario no cumple, en orden determinístico."""
+    """Devuelve las restricciones duras que el itinerario no cumple, en orden determinístico.
+
+    Es lo que mira el loop de reintento y el *hard pass rate*; las advertencias, en `verificar_completo`."""
+    return verificar_completo(itinerario, perfil, corpus).violaciones
+
+
+def verificar_completo(itinerario: Itinerario, perfil: PerfilViaje,
+                       corpus: dict[str, Bodega]) -> ResultadoVerificacion:
+    """Violaciones (restricciones duras incumplidas) y advertencias (necesidades sin dato), por separado."""
     violaciones: list[Violacion] = []
+    advertencias: list[Advertencia] = []
     items_costo: list[ItemCosto] = []
     inicio_jornada, fin_jornada = a_minutos(perfil.hora_inicio_jornada), a_minutos(perfil.hora_fin_jornada)
 
@@ -106,6 +135,10 @@ def verificar(itinerario: Itinerario, perfil: PerfilViaje, corpus: dict[str, Bod
         def nueva(tipo, mensaje, bodega_id=None, _dia=d.numero):
             violaciones.append(Violacion(tipo=tipo, mensaje=f"Día {_dia}: {mensaje}", dia=_dia,
                                          bodega_id=bodega_id))
+
+        def advertir(tipo, mensaje, bodega_id, _dia=d.numero):
+            advertencias.append(Advertencia(tipo=tipo, mensaje=f"Día {_dia}: {mensaje}", dia=_dia,
+                                            bodega_id=bodega_id))
 
         anterior: Optional[Parada] = None
         for p in d.paradas:
@@ -117,7 +150,8 @@ def verificar(itinerario: Itinerario, perfil: PerfilViaje, corpus: dict[str, Bod
                 continue
 
             _chequear_parada(p, b, d.dia_semana, perfil, corpus,
-                             lambda tipo, msg, _b=b.id: nueva(tipo, msg, _b))
+                             lambda tipo, msg, _b=b.id: nueva(tipo, msg, _b),
+                             lambda tipo, msg, _b=b.id: advertir(tipo, msg, _b))
             items_costo.append(ItemCosto(bodega_id=b.id, experiencia=p.experiencia))
 
             if anterior is not None:
@@ -152,4 +186,4 @@ def verificar(itinerario: Itinerario, perfil: PerfilViaje, corpus: dict[str, Bod
                          f"{perfil.presupuesto_max_por_persona:.2f} EUR. Elegí experiencias más baratas o "
                          f"sacá paradas."),
             ))
-    return violaciones
+    return ResultadoVerificacion(violaciones=violaciones, advertencias=advertencias)

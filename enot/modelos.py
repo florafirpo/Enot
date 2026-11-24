@@ -38,7 +38,6 @@ def _validar_hora(v: str) -> str:
 
 Hora = Annotated[str, AfterValidator(_validar_hora)]
 Transporte = Literal["auto", "traslado", "bici", "a_pie"]
-Restriccion = Literal["sin_tacc", "vegetariano", "vegano"]
 
 
 def _num(v) -> Optional[float]:
@@ -94,7 +93,6 @@ class PerfilViaje(BaseModel):
     transporte: Transporte
     personas: int = Field(ge=1)
     presupuesto_max_por_persona: Optional[float] = Field(None, ge=0, description="EUR")
-    restricciones_alimentarias: list[Restriccion] = Field(default_factory=list)
     movilidad_reducida: bool = False
     idiomas: list[str] = Field(default_factory=list)
     zonas_preferidas: list[str] = Field(default_factory=list)

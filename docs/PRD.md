@@ -74,8 +74,8 @@ capacidades:
     un perfil estructurado (JSON): cantidad de días, fechas, transporte
     (auto propio / traslado / sin auto), presupuesto, tamaño del grupo,
     tipo de experiencia, preferencias de vino, zonas, bodegas a incluir
-    o evitar, interés en bodegas poco conocidas, restricciones
-    alimentarias y accesibilidad.
+    o evitar, interés en bodegas poco conocidas, idiomas y
+    accesibilidad.
 
 2.  **Recuperación de candidatas.** Búsqueda híbrida sobre el corpus:
     filtros duros por metadatos (zona, precio, días de apertura) +
@@ -104,8 +104,11 @@ evaluación):
   tipo de experiencia), no por fama.
 
 - *Restricciones duras:* grupo de 6 con una persona en silla de ruedas,
-  visitas en inglés → solo bodegas con capacidad para grupo,
-  accesibilidad declarada e idioma disponible.
+  visitas en inglés → descarta las bodegas que no reciben ese grupo, que
+  declaran no ser accesibles o que publican idiomas sin el inglés; si la
+  ficha no dice nada de accesibilidad o idiomas, la bodega puede entrar
+  con una advertencia ("no pude confirmar…") en la respuesta (ADR-0012).
+  El francés se da por cumplido en todas las bodegas.
 
 - *Pedido infactible:* "8 bodegas en un día entre Chablis y el
   Mâconnais" → el agente explica por qué no entra (las subzonas están a
@@ -230,7 +233,7 @@ anotación la haga una sola persona.
 
 | Métrica                     | Qué mide                               | Cómo se calcula                                                                                                                                                                                     |
 |-----------------------------|----------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Hard pass rate (H1)         | Itinerario factible                    | Validador en código: bodega existe en el corpus, abierta en día y hora, traslados entran en la jornada, presupuesto, capacidad, restricción alimentaria y accesibilidad. Todo o nada por itinerario |
+| Hard pass rate (H1)         | Itinerario factible                    | Validador en código: bodega existe en el corpus, abierta en día y hora, traslados entran en la jornada, presupuesto, capacidad, accesibilidad e idioma (las advertencias por datos faltantes no cuentan, ADR-0012). Todo o nada |
 | Tasa de alucinación         | Datos inventados                       | % de bodegas, precios u horarios que no están en el corpus ni en las tools                                                                                                                          |
 | Preference score (H2)       | Ajuste a lo pedido                     | Juez LLM con rúbrica 1–5, calibrado contra anotación humana en 30 casos (Spearman y kappa)                                                                                                          |
 | Cobertura del corpus (H3)   | Equidad entre bodegas chicas y grandes | % de bodegas del corpus recomendadas al menos una vez en el test, e índice de Gini de las recomendaciones                                                                                           |
@@ -279,6 +282,11 @@ garantizar factibilidad.
 - Viajes de más de 3 días.
 
 - Restaurantes y actividades que no estén dentro de una bodega.
+
+- Restricciones alimentarias (sin TACC, vegetariano, vegano): en Borgoña
+  la visita es una cata, no una comida, y DATAtourisme casi nunca publica
+  ese dato. El agente no las releva ni las verifica (pedido de Flora del
+  24/11/2026, ADR-0012).
 
 - Disponibilidad en tiempo real de cupos.
 

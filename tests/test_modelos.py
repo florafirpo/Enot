@@ -57,7 +57,7 @@ def test_perfil_valida_rangos():
     assert ok.hora_inicio_jornada == "09:30" and ok.hora_fin_jornada == "18:30"
     for malo in [dict(cantidad_dias=0), dict(cantidad_dias=4), dict(personas=0),
                  dict(transporte="helicoptero"), dict(dia_inicio="lunes"),
-                 dict(restricciones_alimentarias=["sin_gluten"]), dict(hora_fin_jornada="25:00")]:
+                 dict(hora_fin_jornada="25:00")]:
         datos = dict(cantidad_dias=1, dia_inicio="lun", transporte="auto", personas=1) | malo
         with pytest.raises(ValidationError):
             PerfilViaje(**datos)

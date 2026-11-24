@@ -1,6 +1,6 @@
 # ADR-0009: Qué hace el verificador cuando a la ficha le falta un dato
 
-**Estado:** Propuesto
+**Estado:** Propuesto · Reemplazado parcialmente por ADR-0012 (necesidades del turista: accesibilidad, dieta, idioma)
 **Fecha:** 2026-11-24
 **Decide:** Flora (propuesto por el agente nocturno en la spec 002; queda a confirmar en el PR)
 

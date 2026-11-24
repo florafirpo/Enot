@@ -19,7 +19,7 @@ from enot.modelos import (
     a_minutos,
 )
 from enot.tools import tiempo_traslado
-from enot.verificador import TIPOS_COMIDA, Violacion, verificar
+from enot.verificador import Violacion, verificar
 
 from .conftest import FIXTURES
 
@@ -133,10 +133,6 @@ def test_orden_determinista(corpus):
     assert v[-1].tipo == "presupuesto_excedido" and v[-1].dia is None and v[-1].bodega_id is None
 
 
-def test_tipos_comida():
-    assert TIPOS_COMIDA == {"almuerzo", "cena", "picnic", "maridaje"}
-
-
 # --- bodega y experiencia inexistentes -------------------------------------------
 
 def test_detecta_bodega_inexistente(corpus):
@@ -147,8 +143,7 @@ def test_detecta_bodega_inexistente(corpus):
 
 def test_bodega_inexistente_no_genera_otras_violaciones(corpus):
     # con requisitos que ninguna bodega cumpliría: de una bodega inexistente solo se informa que no existe
-    p = perfil(movilidad_reducida=True, idiomas=["ja"], restricciones_alimentarias=["vegano"],
-               presupuesto_max_por_persona=0)
+    p = perfil(movilidad_reducida=True, idiomas=["ja"], presupuesto_max_por_persona=0)
     v = verificar(un_dia(parada("fantasma", "10:00", 60, "Inventada")), p, corpus)
     assert tipos(v) == ["bodega_inexistente"]
 
@@ -395,76 +390,9 @@ def test_capacidad_no_publicada(corpus):
     assert verificar(un_dia(parada("a", "10:00")), perfil(personas=40), corpus) == []
 
 
-# --- restricciones alimentarias -------------------------------------------------------
-
-def con_dieta(corpus, **opciones):
-    corpus["a"] = corpus["a"].model_copy(update=opciones)
-    return corpus
-
-
-def test_almuerzo_sin_opcion_declarada(corpus):
-    con_dieta(corpus, opciones_sin_tacc=False)
-    v = verificar(un_dia(parada("a", "12:00", 120, "Déjeuner")), perfil(restricciones_alimentarias=["sin_tacc"]),
-                  corpus)
-    assert tipos(v) == ["restriccion_alimentaria"]
-    assert v[0].bodega_id == "a" and "sin_tacc" in v[0].mensaje
-
-
-def test_almuerzo_con_opcion_declarada(corpus):
-    con_dieta(corpus, opciones_sin_tacc=True)
-    it = un_dia(parada("a", "12:00", 120, "Déjeuner"))
-    assert verificar(it, perfil(restricciones_alimentarias=["sin_tacc"]), corpus) == []
-
-
-@pytest.mark.parametrize("tipo", ["almuerzo", "cena", "picnic", "maridaje"])
-def test_cada_tipo_de_comida_chequea_dieta(corpus, tipo):
-    corpus["a"] = corpus["a"].model_copy(update={"experiencias": [exp("Comida", tipo=tipo)]})
-    v = verificar(un_dia(parada("a", "12:00", 60, "Comida")), perfil(restricciones_alimentarias=["vegano"]), corpus)
-    assert tipos(v) == ["restriccion_alimentaria"]
-
-
-def test_degustacion_no_chequea_dieta(corpus):
-    con_dieta(corpus, opciones_sin_tacc=False)
-    it = un_dia(parada("a", "10:00", 60, "Dégustation"))
-    assert verificar(it, perfil(restricciones_alimentarias=["sin_tacc"]), corpus) == []
-
-
-def test_parada_sin_experiencia_no_chequea_dieta(corpus):
-    con_dieta(corpus, opciones_sin_tacc=False)
-    assert verificar(un_dia(parada("a", "12:00", 120)), perfil(restricciones_alimentarias=["sin_tacc"]), corpus) == []
-
-
-def test_vegano_cubre_vegetariano(corpus):
-    con_dieta(corpus, opciones_vegetarianas=None, opciones_veganas=True)
-    it = un_dia(parada("a", "12:00", 120, "Déjeuner"))
-    assert verificar(it, perfil(restricciones_alimentarias=["vegetariano"]), corpus) == []
-
-
-def test_vegetariano_no_cubre_vegano(corpus):
-    con_dieta(corpus, opciones_vegetarianas=True, opciones_veganas=None)
-    it = un_dia(parada("a", "12:00", 120, "Déjeuner"))
-    assert verificar(it, perfil(restricciones_alimentarias=["vegetariano"]), corpus) == []
-    assert tipos(verificar(it, perfil(restricciones_alimentarias=["vegano"]), corpus)) == ["restriccion_alimentaria"]
-
-
-def test_dieta_None_es_violacion(corpus):
-    con_dieta(corpus, opciones_vegetarianas=None, opciones_veganas=None)
-    it = un_dia(parada("a", "12:00", 120, "Déjeuner"))
-    assert tipos(verificar(it, perfil(restricciones_alimentarias=["vegetariano"]), corpus)) == [
-        "restriccion_alimentaria"]
-
-
-def test_dieta_una_violacion_por_restriccion(corpus):
-    con_dieta(corpus, opciones_sin_tacc=True, opciones_vegetarianas=False, opciones_veganas=False)
-    it = un_dia(parada("a", "12:00", 120, "Déjeuner"))
-    v = verificar(it, perfil(restricciones_alimentarias=["sin_tacc", "vegetariano", "vegano"]), corpus)
-    assert tipos(v) == ["restriccion_alimentaria", "restriccion_alimentaria"]
-    assert "vegetariano" in v[0].mensaje and "vegano" in v[1].mensaje
-
-
 # --- accesibilidad --------------------------------------------------------------------
 
-@pytest.mark.parametrize("valor", [False, None])
+@pytest.mark.parametrize("valor", [False])
 def test_accesibilidad_no_declarada(corpus, valor):
     corpus["a"] = corpus["a"].model_copy(update={"accesible_movilidad_reducida": valor})
     v = verificar(un_dia(parada("a", "10:00")), perfil(movilidad_reducida=True), corpus)
@@ -505,12 +433,6 @@ def test_idioma_basta_uno(corpus):
     assert verificar(un_dia(parada("b", "10:00")), perfil(idiomas=["en", "de"]), corpus) == []
 
 
-def test_idioma_sin_datos_es_violacion(corpus):
-    corpus["a"] = corpus["a"].model_copy(update={"idiomas": []})
-    v = verificar(un_dia(parada("a", "10:00")), perfil(idiomas=["fr"]), corpus)
-    assert tipos(v) == ["idioma_no_disponible"]
-
-
 def test_idioma_sin_mayusculas(corpus):
     corpus["a"] = corpus["a"].model_copy(update={"idiomas": ["FR"]})
     assert verificar(un_dia(parada("a", "10:00")), perfil(idiomas=["fr"]), corpus) == []
@@ -525,7 +447,7 @@ def test_idioma_no_pedido(corpus):
 # --- varias a la vez --------------------------------------------------------------------
 
 def test_detecta_varias_en_la_misma_parada(corpus):
-    corpus["a"] = corpus["a"].model_copy(update={"capacidad_max_grupo": 2, "accesible_movilidad_reducida": None})
+    corpus["a"] = corpus["a"].model_copy(update={"capacidad_max_grupo": 2, "accesible_movilidad_reducida": False})
     p = perfil(personas=3, movilidad_reducida=True, idiomas=["ja"])
     v = verificar(un_dia(parada("a", "10:00")), p, corpus)
     assert sorted(tipos(v)) == ["accesibilidad", "grupo_excede_capacidad", "idioma_no_disponible"]
@@ -559,7 +481,7 @@ def test_mensaje_de_superposicion(corpus):
 
 
 def test_mensaje_de_accesibilidad_nombra_la_bodega(corpus):
-    corpus["a"] = corpus["a"].model_copy(update={"accesible_movilidad_reducida": None})
+    corpus["a"] = corpus["a"].model_copy(update={"accesible_movilidad_reducida": False})
     [v] = verificar(un_dia(parada("a", "10:00")), perfil(movilidad_reducida=True), corpus)
     assert "[SINTÉTICA] a" in v.mensaje and "accesib" in v.mensaje
 
@@ -567,9 +489,8 @@ def test_mensaje_de_accesibilidad_nombra_la_bodega(corpus):
 def test_mensaje_de_idioma_nombra_la_experiencia_o_la_bodega(corpus):
     [v] = verificar(un_dia(parada("a", "12:00", 60, "Déjeuner")), perfil(idiomas=["en", "de"]), corpus)
     assert "Déjeuner" in v.mensaje and "en, de" in v.mensaje
-    corpus["b"] = corpus["b"].model_copy(update={"idiomas": []})
     [v] = verificar(un_dia(parada("b", "10:00", 60, "Visite")), perfil(idiomas=["en"]), corpus)
-    assert "Visite" not in v.mensaje and "[SINTÉTICA] b" in v.mensaje and "publicados: ninguno)" in v.mensaje
+    assert "Visite" not in v.mensaje and "[SINTÉTICA] b" in v.mensaje
     corpus["b"] = corpus["b"].model_copy(update={"idiomas": ["fr", "de"]})
     [v] = verificar(un_dia(parada("b", "10:00")), perfil(idiomas=["en"]), corpus)
     assert "fr, de" in v.mensaje
