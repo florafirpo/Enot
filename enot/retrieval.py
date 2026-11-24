@@ -134,12 +134,20 @@ def _visitas(b: Bodega) -> list[tuple[list[str], float]]:
     return visitas
 
 
+def _coincide_zona(pedida: str, zona: str) -> bool:
+    """Todas las palabras de la zona pedida están en la zona de la bodega: 'Chablis' → 'Chablis y Grand Auxerrois'.
+
+    Las zonas del corpus tienen nombres largos y el perfil lo llena un LLM o el turista con texto libre."""
+    palabras = set(tokenizar(pedida))
+    return bool(palabras) and palabras <= set(tokenizar(zona))
+
+
 def motivo_exclusion(b: Bodega, perfil: PerfilViaje) -> Optional[str]:
     """Por qué el perfil descarta la bodega, o None si pasa los filtros duros."""
     evitar = {x.casefold() for x in perfil.bodegas_evitar}
     if b.id.casefold() in evitar or b.nombre.casefold() in evitar:
         return "el turista pidió evitarla"
-    if perfil.zonas_preferidas and _plano(b.zona) not in {_plano(z) for z in perfil.zonas_preferidas}:
+    if perfil.zonas_preferidas and not any(_coincide_zona(z, b.zona) for z in perfil.zonas_preferidas):
         return f"zona {b.zona or 'sin zona'} fuera de las pedidas"
     if b.capacidad_max_grupo is not None and perfil.personas > b.capacidad_max_grupo:
         return f"recibe hasta {b.capacidad_max_grupo} personas y el grupo es de {perfil.personas}"
@@ -270,6 +278,12 @@ class Indice:
         textos = [texto_bodega(b) for b in self.bodegas]
         self._tokens = [tokenizar(t) for t in textos]
         self._vectores = _normalizar(embedder.embeber(textos)) if textos else np.zeros((0, 0))
+
+    def zonas_desconocidas(self, perfil: PerfilViaje) -> list[str]:
+        """Zonas pedidas que no coinciden con ninguna zona del corpus: el flujo las informa ("no reconozco la zona
+        X") en vez de presentar el pedido como infactible."""
+        zonas = {b.zona for b in self.bodegas}
+        return [z for z in perfil.zonas_preferidas if not any(_coincide_zona(z, zona) for zona in zonas)]
 
     def buscar(self, perfil: Optional[PerfilViaje], k: int = 10, consulta: Optional[str] = None,
                top_por_metodo: Optional[int] = None) -> list[Candidata]:
