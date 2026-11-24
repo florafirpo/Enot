@@ -2,6 +2,17 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-24 · noche/2026-11-24-010 · datos faltantes del turista: advertencias en vez de violaciones
+- `enot/verificador.py`: `verificar_completo(...) -> ResultadoVerificacion(violaciones, advertencias)` y
+  `factible`; `verificar` sigue devolviendo solo violaciones. Accesibilidad `False` viola y `None` advierte;
+  el francés (`IDIOMA_BASE`) se cumple siempre; otros idiomas: lista publicada sin el pedido viola, sin lista
+  advierte. Se quitan `restriccion_alimentaria` y `TIPOS_COMIDA`.
+- `enot/modelos.py`: `PerfilViaje` pierde `restricciones_alimentarias`. PRD: dieta fuera de alcance; caso de uso
+  y H1 actualizados.
+- ADR-0012 (propuesto); ADR-0009 queda reemplazado parcialmente.
+- 22 tests nuevos (`tests/test_verificador_advertencias.py`); de los de 002, 15 casos borrados y 5 ajustados en commits
+  aparte porque la regla cambió (ver spec 010 y el reporte). Total 172 → 179. Mutation sobre `enot/verificador.py`: 270/270.
+
 ## 2026-11-24 · desarrollo · explicaciones de todas las clases para el compañero
 - `docs/catedra/`: se suman las explicaciones del 13/08, 27/08, 3/09, 17/09 y 22/10, y la versión nueva del
   1/10 (con knowledge graphs). Índice actualizado.

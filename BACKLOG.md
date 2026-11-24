@@ -28,7 +28,7 @@ Cada ítem respeta los ADRs.
   - Usa las tools de 001 (una sola fuente de verdad).
   - Aceptación: por cada tipo, un test que lo detecta y uno que no lo confunde. Mutation ≥ 80%.
 
-- [ ] **010 · Datos faltantes del turista: advertencias en vez de violaciones** (24/11; sale de lo que dijo Flora el 24/11, ver `docs/feedback-flora.md`)
+- [~] **010 · Datos faltantes del turista: advertencias en vez de violaciones** (24/11; sale de lo que dijo Flora el 24/11, ver `docs/feedback-flora.md`) · rama `noche/2026-11-24-010`
   - DATAtourisme casi nunca publica accesibilidad ni dieta. Con ADR-0009 tal como está, cualquier pedido con
     esas necesidades da cero bodegas.
   - Sacar `restricciones_alimentarias` de `PerfilViaje` y del verificador (fuera de alcance: en Borgoña la

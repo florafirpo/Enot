@@ -5,10 +5,11 @@ antes que el backlog. Flora lo edita desde la web de GitHub (rama `desarrollo`, 
 Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que escribió Flora.
 
 ## Pedidos
-- [ ] (24/11) El francés es el idioma base: está en todas las bodegas. No hay datos de accesibilidad ni de
+- [x] (24/11) El francés es el idioma base: está en todas las bodegas. No hay datos de accesibilidad ni de
   dieta en DATAtourisme, así que el verificador no puede basarse en eso para descartar bodegas.
   → Se traduce en el ítem 010 del backlog. Si Flora no está de acuerdo con la propuesta del 010, lo escribe
   acá abajo antes de la próxima corrida.
+  → Resuelto en `noche/2026-11-24-010` (spec 010, ADR-0012).
 - [ ] (24/11) Obligatorio en todo cambio: entrada en `CHANGELOG.md` y ADR nuevo (ya en `AGENTS.md`,
   sensor `make registro`).
 
