@@ -4,9 +4,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
+
 from enot.corpus_local import cargar_corpus
 from enot.modelos import Bodega, Parada, PerfilViaje, a_hora, a_minutos
-from pydantic import ValidationError
 
 from .conftest import FIXTURES
 
