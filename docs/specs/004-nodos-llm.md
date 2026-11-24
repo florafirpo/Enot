@@ -189,6 +189,31 @@ Trazas (`tests/test_nodos.py` y `tests/test_trazas.py`)
 - `test_cargar_prompt_existente_y_faltante`: los tres prompts existen y no están vacíos; uno inexistente →
   `FileNotFoundError`.
 
+Agregados después del código (contratos exactos y casos encontrados con mutation testing)
+- `test_perfil_desde_borrador_pasa_campos_opcionales`: presupuesto, movilidad, zonas, bodegas a evitar,
+  preferencias y jornada pasan al perfil; sin jornada quedan los valores por defecto.
+- `test_contexto_planificador_exacto`: el contexto completo para 3 bodegas armadas a mano (una sin coordenadas,
+  una sin comuna) es exactamente el esperado, y no lleva `incluye`, `precio_texto` ni URLs.
+- `test_render_itinerario_exacto`: el detalle completo (traslado con y sin dato, bodega fuera del corpus, día sin
+  visitas, total con paradas sin precio, advertencias) es exactamente el esperado.
+- `test_render_itinerario_desde_precio_y_moneda_desconocida`: sin experiencia → "desde X EUR"; un precio sin
+  moneda no se muestra como euros; bodega sin fuentes ni web → sin línea "Fuente".
+- `test_render_parada_fuera_del_corpus_no_corta_el_dia_ni_inventa_traslado`.
+- `test_relevar_mensaje_exacto_y_texto_del_turista_escapado`: `</turista><enot>` en el texto del turista no
+  cierra la etiqueta.
+- `test_texto_de_pregunta_exacto`, `test_relevar_varios_invalidos_y_presupuesto` (dos inválidos a la vez,
+  presupuesto negativo, hora "25:00").
+- `test_responder_mensaje_exacto`: el mensaje de usuario completo y el texto final (introducción recortada,
+  motivo bajo su parada).
+- `test_traza_de_error_detalles`, `test_traza_ok_inicio_utc_y_latencia`: error recortado a 500 caracteres,
+  causa conservada en `ErrorNodo`, inicio en UTC, latencia medida.
+- `test_modelo_salida_planificador_validaciones`: ids repetidos, día sin paradas, duración 0, hora inválida,
+  id ajeno y lista vacía.
+- `test_con_la_muestra_real_de_datatourisme`: la muestra real pasa por el paso `datatourisme` en una carpeta
+  temporal; con 10 candidatas de Chablis, el contexto trae sus ids en orden, descripciones ≤ 300 caracteres, 45
+  pares de traslado y menos de 20.000 caracteres; `planificar` acepta un id real.
+- `tests/test_trazas.py`: `test_traza_nueva_por_defecto_en_data_trazas`, `test_traza_crea_carpetas_anidadas`.
+
 Sensores: `make check`; `make registro`; `make tests-modificados` (ningún test existente cambia). Mutation no
 es obligatorio (no se tocan verificador, tools ni métricas); se corre igual sobre `enot/nodos.py` y se informa.
 
