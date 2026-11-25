@@ -54,8 +54,13 @@ class Flujo:
     def turno(self, sesion: Sesion, texto: str) -> Respuesta               # modifica la sesión
 
 # enot/nodos.py (cambio compatible)
-def contexto_planificador(..., itinerario_previo, pedido_ajuste: str | None = None) -> str
-def planificar(..., intento: int = 1, pedido_ajuste: str | None = None) -> Itinerario
+def contexto_planificador(..., itinerario_previo, pedido_ajuste: str | None = None,
+                          vigente_ajuste: Itinerario | None = None) -> str
+def planificar(..., intento: int = 1, pedido_ajuste: str | None = None,
+               vigente_ajuste: Itinerario | None = None) -> Itinerario
+#   1.er intento de un ajuste: itinerario_previo = vigente, pedido "editá el itinerario anterior".
+#   Reintento de un ajuste (vigente_ajuste dado): itinerario_previo = la propuesta fallida (ya trae el pedido
+#   aplicado), el vigente va aparte como referencia y el pedido se marca "ya aplicado: no lo apliques de nuevo".
 
 # enot/__main__.py
 def main(argv: list[str] | None = None, leer=input, escribir=print, construir_flujo=None) -> int
@@ -72,8 +77,10 @@ def main(argv: list[str] | None = None, leer=input, escribir=print, construir_fl
    pueda conservarlas (el esquema de salida solo acepta ids de candidatas). Sin candidatas: responde
    `sin_candidatas` con los motivos de exclusión más frecuentes.
 5. Loop `intento = 1..max_intentos`: chequea el tope de tokens (si se alcanzó, corta con `tope_tokens`),
-   `planificar` (en un ajuste, con `itinerario_previo` = vigente y `pedido_ajuste` = el mensaje del turista; en los
-   reintentos, con la propuesta anterior y sus violaciones) y `verificar_completo`. Sin violaciones → sale.
+   `planificar` y `verificar_completo`. Sin violaciones → sale. Intento 1: sin itinerario previo o, en un ajuste,
+   con `itinerario_previo` = vigente y `pedido_ajuste` = el mensaje del turista. Reintentos: `itinerario_previo` =
+   la propuesta fallida y sus violaciones; en un ajuste, además `vigente_ajuste` = vigente, para que el pedido (que
+   la propuesta fallida ya aplicó) no se vuelva a aplicar (revisión 005 ronda 1, hallazgo 1).
 6. Si hubo itinerario factible: pasa a ser el vigente (con sus advertencias) y se responde con `responder`.
    Si el tope de tokens se alcanzó justo antes o `responder` falla, el texto es `render_itinerario` (código, sin
    LLM): un itinerario válido no se tira.
@@ -121,6 +128,10 @@ Tests en `tests/test_flujo.py` (corpus SINTÉTICO, `ClienteFalso` con un guion p
   planificador recibe el vigente y el pedido (`<pedido>…</pedido>`); el nuevo vigente tiene 1 parada.
 - `test_ajuste_suma_las_bodegas_vigentes_a_las_candidatas`: con `k=1`, las bodegas del vigente siguen entre las
   candidatas; una que el turista ahora pidió evitar, no.
+- `test_ajuste_reintento_no_reaplica_el_pedido`: un ajuste cuyo 1.er intento es inválido → el contexto del 2.º
+  trae la propuesta fallida como itinerario anterior, el vigente como referencia aparte y el pedido marcado "ya
+  aplicado"; no trae el encabezado "editá el itinerario anterior".
+- `test_contexto_planificador_reintento_de_ajuste`: secciones exactas del reintento de un ajuste.
 - `test_ajuste_infactible_conserva_el_vigente`: el ajuste no se logra en 3 intentos → el vigente no cambia y el
   texto lo dice.
 - `test_zona_desconocida_avisa_sin_buscar`: "Alsacia" → `zona_desconocida`, "No reconozco la zona Alsacia", sin
@@ -132,6 +143,8 @@ Tests en `tests/test_flujo.py` (corpus SINTÉTICO, `ClienteFalso` con un guion p
   sin la lista cuando no hay motivos.
 - `test_tope_de_tokens_corta_el_loop`: con un tope que se alcanza tras el 1.er intento inválido → `tope_tokens`, una
   sola llamada al planificador; el turno siguiente no llama al LLM.
+- `test_tope_alcanzado_por_el_relevamiento_no_planifica`: el tope se alcanza con el relevamiento → `tope_tokens`, 0
+  intentos, sin propuesta.
 - `test_tope_antes_de_responder_entrega_el_detalle_sin_llm`: tope alcanzado con un itinerario válido → el texto es
   `render_itinerario`, el vigente se guarda y no se llama a `respuesta`.
 - `test_error_de_nodo_no_ensucia_la_sesion`: el relevamiento falla → `error`, historial sin cambios.
@@ -141,7 +154,7 @@ Tests en `tests/test_flujo.py` (corpus SINTÉTICO, `ClienteFalso` con un guion p
 - `test_tokens_usados_ignora_desconocidos`: suma solo tokens conocidos.
 - `test_descripcion_violacion_cubre_todos_los_tipos` y `test_explicar_infactible_texto` (descripciones sin repetir y
   en orden, detalle, cantidad de intentos, "sigue vigente" solo si hay vigente).
-- `test_avisar_zonas_desconocidas_texto` y `test_contexto_planificador_con_pedido_de_ajuste` (sección exacta, `<` y
+- `test_avisar_zonas_desconocidas_texto` (singular y plural) y `test_contexto_planificador_con_pedido_de_ajuste` (sección exacta, `<` y
   `>` del pedido neutralizados; sin pedido, el contexto no cambia).
 - `test_con_la_muestra_real_de_datatourisme`: un turno completo sobre las bodegas de `data/datatourisme/muestra.csv`
   (se saltea si no está).
@@ -150,8 +163,10 @@ Tests en `tests/test_cli.py` (sin red: el flujo se inyecta):
 - `test_cli_conversa_y_guarda_la_sesion` (una línea vacía no es un turno; "salir" corta; la traza va a
   `data/trazas/`), `test_cli_termina_con_eof_sin_sesion`, `test_cli_retoma_la_sesion` (el relevamiento ve el
   historial anterior y la traza sigue en el mismo archivo), `test_cli_pasa_las_opciones_al_flujo` (`--fichas`,
-  `--max-intentos`, `--tope-tokens`, `--k` y sus valores por defecto), `test_cli_sin_corpus_sale_con_error` (sin
-  fichas: mensaje y código 1, sin construir el cliente LLM), `test_cli_rechaza_valores_no_positivos`.
+  `--max-intentos`, `--tope-tokens`, `--k` y sus valores por defecto, pasando por `argparse`),
+  `test_cli_sin_corpus_sale_con_error` (sin fichas: mensaje y código 1, sin construir el cliente LLM),
+  `test_cli_error_del_cliente_llm_sale_con_error` (falta la clave: mensaje y código 1, sin traceback),
+  `test_cli_ctrl_c_en_un_turno_no_guarda_el_turno_a_medias`, `test_cli_rechaza_valores_no_positivos`.
 
 Sensores: `make check`; mutation sobre `enot/flujo.py` (no obligatorio; resultado en el reporte). Flora: probar
 `python -m enot` con su clave (26–27/11) y leer los textos fijos de `enot/flujo.py`.
