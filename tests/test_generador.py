@@ -44,8 +44,9 @@ def contiene(texto: str, *opciones: str) -> bool:
     return any(palabras(o) in n for o in opciones)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def consultas():
+    # por test y no por módulo: mutmut atribuye la llamada a generar() solo al primer test de un fixture de módulo
     return generar()
 
 
@@ -64,6 +65,17 @@ def consulta(escenario="infactible", **perfil) -> Consulta:
 def test_misma_semilla_mismo_set():
     a, b = generar(7), generar(7)
     assert [c.model_dump() for c in a] == [c.model_dump() for c in b]
+
+
+HUELLA = "562f86ad82a0f41a"  # sha256 (16 primeros) del set de la semilla por defecto, versión 006.1
+
+
+def test_huella_del_set_por_defecto():
+    """El set de la semilla por defecto queda fijo para esta versión del generador: si cambia una plantilla, una
+    cuota o el orden de los sorteos, este test obliga a subir VERSION_GENERADOR (el set se versiona, ADR-0007)."""
+    import hashlib
+    datos = json.dumps([c.model_dump(mode="json") for c in generar()], ensure_ascii=False, sort_keys=True)
+    assert (g.VERSION_GENERADOR, hashlib.sha256(datos.encode()).hexdigest()[:16]) == ("006.1", HUELLA)
 
 
 def test_otra_semilla_otro_set():
@@ -201,7 +213,7 @@ def test_certificado_demasiadas_bodegas_borde():
     assert certificado_infactible(justo) is None
     pasado = consulta(bodegas_por_dia=7, hora_inicio_jornada="10:00", hora_fin_jornada="13:00")
     texto = certificado_infactible(pasado)
-    assert texto and "7" in texto and "180" in texto
+    assert texto and "7" in texto and "180" in texto and "210" in texto
     assert certificado_infactible(consulta(bodegas_por_dia=None, hora_inicio_jornada="10:00",
                                            hora_fin_jornada="10:30")) is None
     # varios días no cambian la cota: bodegas_por_dia es por día
@@ -229,9 +241,32 @@ def test_certificado_zonas_lejanas():
                                            hora_inicio_jornada="10:00", hora_fin_jornada="14:00"))
 
 
+def test_certificado_zonas_lejanas_minutos_y_borde():
+    """Los minutos salen del par de comunas más cercano con las constantes de la tool; jornada igual no alcanza."""
+    import itertools
+
+    from enot.tools.distancias import FACTOR_RUTA, VELOCIDAD_KMH, haversine_km
+    za, zb = "Chablis y Grand Auxerrois", "Mâconnais"
+    km, a, b = min((haversine_km(*ca, *cb), na, nb) for (na, ca), (nb, cb) in
+                   itertools.product(g.REFERENCIAS_ZONA[za].items(), g.REFERENCIAS_ZONA[zb].items()))
+    esperado = round(km * FACTOR_RUTA / VELOCIDAD_KMH["bici"] * 60)
+    texto = certificado_infactible(consulta(transporte="bici", zonas_preferidas=[za, zb], zonas_mismo_dia=[za, zb]))
+    assert f"{esperado} min" in texto and a in texto and b in texto and "540" in texto
+    assert (a, b) == ("Vézelay", "Tournus")
+    # con una jornada exactamente igual al traslado, entra; con un minuto menos, no
+    from enot.modelos import a_hora
+    igual = consulta(transporte="bici", zonas_preferidas=[za, zb], zonas_mismo_dia=[za, zb],
+                     hora_inicio_jornada="06:00", hora_fin_jornada=a_hora(360 + esperado))
+    assert certificado_infactible(igual) is None
+    menos = consulta(transporte="bici", zonas_preferidas=[za, zb], zonas_mismo_dia=[za, zb],
+                     hora_inicio_jornada="06:01", hora_fin_jornada=a_hora(360 + esperado))
+    assert certificado_infactible(menos)
+
+
 def test_certificado_zona_fuera():
     texto = certificado_infactible(consulta(zonas_preferidas=["Champagne"]))
     assert texto and "Champagne" in texto
+    assert "Jura, Burdeos" in certificado_infactible(consulta(zonas_preferidas=["Jura", "Chablis", "Burdeos"]))
     assert certificado_infactible(consulta(zonas_preferidas=["Chablis"])) is None
     assert certificado_infactible(consulta(zonas_preferidas=["Côte de Beaune", "cote de nuits"])) is None
     assert certificado_infactible(consulta(zonas_preferidas=["Côte de Beaune", "Jura"]))
@@ -328,16 +363,16 @@ def test_escribir_set_no_pisa_test(tmp_path, existente):
 
 def test_tasa_error_revision(tmp_path):
     ruta = tmp_path / "rev.csv"
-    filas = [("q001", "dias", "no"), ("q002", "dias", "Sí"), ("q003", "idioma", "no"), ("q004", "idioma", "si"),
-             ("q005", "grupo", "")]
+    filas = [("q001", "dias", "no"), ("q005", "grupo", ""), ("q002", "dias", "Sí"), ("q003", "idioma", "no"),
+             ("q004", "idioma", "si"), ("q006", "idioma", "ok")]
     with open(ruta, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["id", "escenario", "correcta", "comentario"])
         for i, e, ok in filas:
             w.writerow([i, e, ok, ""])
     r = tasa_error_revision(ruta)
-    assert (r.revisadas, r.con_error, r.tasa_error) == (4, 2, 0.5)
-    assert r.por_escenario == {"dias": {"revisadas": 2, "con_error": 1}, "idioma": {"revisadas": 2, "con_error": 1}}
+    assert (r.revisadas, r.con_error, r.tasa_error) == (5, 2, 0.4)
+    assert r.por_escenario == {"dias": {"revisadas": 2, "con_error": 1}, "idioma": {"revisadas": 3, "con_error": 1}}
 
     with open(ruta, "w", encoding="utf-8", newline="") as f:
         csv.writer(f).writerows([["id", "escenario", "correcta"], ["q1", "dias", " "]])
