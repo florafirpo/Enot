@@ -155,8 +155,8 @@ Tests nuevos (archivos nuevos; ningún test existente se modifica):
 
 `tests/test_calibrar.py`
 - `test_rangos_con_empates`: `[10, 20, 20, 30]` → `[1, 2.5, 2.5, 4]`.
-- `test_spearman_valores_conocidos`: perfecto (1), inverso (−1), con empates (calculado a mano: 0,8), y coincide con
-  `scipy.stats.spearmanr` si está instalado.
+- `test_spearman_valores_conocidos`: perfecto (1), inverso (−1), sin empates (0,8) y con empates
+  (8,5/√95), calculados a mano, y coincide con `scipy.stats.spearmanr` si está instalado.
 - `test_spearman_indefinido`: menos de 3 pares o una serie constante → `None`; largos distintos → `ValueError`.
 - `test_kappa_valores_conocidos`: acuerdo perfecto 1; caso de libro calculado a mano (sin ponderar y cuadrático);
   el cuadrático castiga más un desacuerdo 1–5 que uno 4–5; coincide con sklearn si está.
