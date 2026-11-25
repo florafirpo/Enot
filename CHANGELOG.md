@@ -2,6 +2,20 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-24 · noche/2026-11-24-005 · flujo completo con loop de verificación, ajuste conversacional y CLI
+- `enot/flujo.py`: `Sesion` serializable (historial, perfil, itinerario vigente, advertencias, ruta de la traza) y
+  `Flujo.turno(sesion, texto) -> Respuesta`: relevar → zonas conocidas → buscar → [planificar → verificar] × hasta
+  `max_intentos` (3; 1 = ablación B2) → responder. Tope de tokens por conversación (200 000) sumado desde la traza y
+  chequeado antes de cada llamada. Ajuste: con itinerario vigente, el planificador recibe el vigente y el pedido, y
+  las bodegas del vigente se suman a las candidatas; el vigente solo cambia por otro factible. Textos de infactible,
+  zona desconocida ("No reconozco la zona X", revisión 003 ronda 2), sin candidatas y tope escritos por código.
+- `enot/__main__.py`: `python -m enot [--sesion archivo.json] [--fichas] [--max-intentos] [--tope-tokens] [--k]`.
+- `enot/nodos.py`: `planificar` y `contexto_planificador` aceptan `pedido_ajuste` (compatible: sin pedido, el
+  contexto no cambia); `prompts/planificador.md` explica cómo usarlo.
+- ADR-0015 (propuesto). Spec 005.
+- 32 tests nuevos (302 → 334), ningún test existente modificado; uno corre la muestra real de DATAtourisme por un
+  turno completo. Mutation (no obligatorio): `enot/flujo.py` 344/361 (95%; sobrevivientes equivalentes).
+
 ## 2026-11-24 · noche/2026-11-24-004 · nodos con LLM (relevamiento, planificador, respuesta) y trazas
 - `enot/nodos.py`: `relevar(historial) -> PerfilViaje | Pregunta` (el LLM extrae un `BorradorPerfil`; qué falta, qué
   es inválido y el día de la semana de una fecha los decide el código, con preguntas fijas por campo);

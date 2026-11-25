@@ -59,7 +59,7 @@ Cada ítem respeta los ADRs.
   - Aceptación: con `ClienteFalso`, cada nodo arma el contexto esperado (incluye las violaciones previas en
     el reintento) y valida la salida; el relevamiento repregunta si falta un dato obligatorio.
 
-- [ ] **005 · Flujo completo con loop de verificación + CLI (tracer bullet)** (27/11)
+- [~] **005 · Flujo completo con loop de verificación + CLI (tracer bullet)** (27/11) · rama `noche/2026-11-24-005`
   - `enot/flujo.py`: `Sesion` serializable y el workflow de ADR-0003 con circuit breaker
     (`max_intentos=3`, tope de tokens). `max_intentos=1` = ablación B2.
   - `python -m enot`: chat por consola; `--sesion archivo.json` para retomar.
