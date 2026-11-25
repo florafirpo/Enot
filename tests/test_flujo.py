@@ -165,6 +165,8 @@ def test_max_intentos_1_es_la_ablacion_b2(corpus, indice, sesion):
 def test_max_intentos_y_tope_invalidos(corpus, indice, kwargs):
     with pytest.raises(ValueError):
         Flujo(ClienteFalso([{}]), corpus, indice, **kwargs)
+    minimo = Flujo(ClienteFalso([{}]), corpus, indice, max_intentos=1, tope_tokens=1)  # el borde vale
+    assert (minimo.max_intentos, minimo.tope_tokens) == (1, 1)
 
 
 # --- turno: ajuste conversacional ---------------------------------------------------------
@@ -269,11 +271,22 @@ def test_tope_de_tokens_corta_el_loop(corpus, indice, sesion):
     assert len(g.recibido["planificador"]) == 1
     assert sesion.itinerario is None
     assert str(2 * TOKENS_POR_LLAMADA) in r.texto
+    assert r.itinerario == itinerario(INVALIDO)  # la propuesta que se alcanzó a verificar, con sus violaciones
+    assert {v.tipo for v in r.violaciones} == {"cerrada", "jornada_excedida"}
 
     llamadas = len(cli.llamadas)
     r2 = flujo.turno(sesion, "¿y ahora?")
     assert r2.tipo == "tope_tokens"
+    assert str(2 * TOKENS_POR_LLAMADA) in r2.texto
     assert len(cli.llamadas) == llamadas
+
+
+def test_tope_alcanzado_por_el_relevamiento_no_planifica(corpus, indice, sesion):
+    g = Guion(relevamiento=[PERFIL], planificador=[VALIDO], respuesta=[SALIDA_RESPUESTA])
+    r = Flujo(cliente(g), corpus, indice, tope_tokens=TOKENS_POR_LLAMADA).turno(sesion, "Un día el viernes, auto, 2")
+    assert r.tipo == "tope_tokens"
+    assert (r.intentos, r.itinerario, r.violaciones) == (0, None, [])
+    assert g.recibido["planificador"] == []
 
 
 def test_tope_antes_de_responder_entrega_el_detalle_sin_llm(corpus, indice, sesion):
@@ -299,10 +312,15 @@ def test_error_de_nodo_no_ensucia_la_sesion(corpus, indice, sesion):
 
 
 def test_error_en_respuesta_degrada_al_detalle(corpus, indice, sesion):
-    g = Guion(relevamiento=[PERFIL], planificador=[VALIDO], respuesta=["{no es json"])
-    r = Flujo(cliente(g), corpus, indice).turno(sesion, "Un día el viernes en auto, somos 2")
+    con_silla = {**PERFIL, "movilidad_reducida": True}
+    g = Guion(relevamiento=[con_silla], planificador=[VALIDO], respuesta=["{no es json"])
+    r = Flujo(cliente(g), corpus, indice).turno(sesion, "Un día el viernes en auto, somos 2, silla de ruedas")
     assert r.tipo == "itinerario"
-    assert r.texto == render_itinerario(itinerario(VALIDO), PerfilViaje(**PERFIL), corpus, advertencias=[])
+    perfil = PerfilViaje(**con_silla)
+    advertencias = verificar_completo(itinerario(VALIDO), perfil, corpus).advertencias
+    assert advertencias  # el detalle armado por código no pierde las advertencias
+    assert r.texto == render_itinerario(itinerario(VALIDO), perfil, corpus, advertencias=advertencias)
+    assert "Para tener en cuenta" in r.texto
     assert sesion.itinerario == itinerario(VALIDO)
     assert sesion.historial[-1].texto == r.texto
 
@@ -316,8 +334,10 @@ def test_sesion_ida_y_vuelta_y_tokens_continuan(corpus, indice, sesion, tmp_path
     assert r.tipo == "itinerario"
     assert [a.tipo for a in sesion.advertencias] == ["accesibilidad_sin_confirmar"]  # Pommard no publica el dato
     assert r.advertencias == sesion.advertencias
+    assert "Para tener en cuenta" in r.texto and sesion.advertencias[0].mensaje in r.texto
+    assert sesion.traza().ruta.parent == tmp_path / "trazas"
 
-    ruta = tmp_path / "sesion.json"
+    ruta = tmp_path / "carpeta" / "nueva" / "sesion.json"
     sesion.guardar(ruta)
     retomada = Sesion.cargar(ruta)
     assert retomada == sesion
@@ -356,8 +376,16 @@ def test_explicar_infactible_texto():
     assert t.count(p) == 1 and t.count(c) == 1 and t.index(p) < t.index(c)
     assert all(f"- {v.mensaje}" in t for v in vs)
     assert "sigue vigente" not in t
-    con_vigente = explicar_infactible(vs, 1, hay_vigente=True)
-    assert "sigue vigente" in con_vigente and "1 intento" in con_vigente and "1 intentos" not in con_vigente
+    con_vigente = explicar_infactible(vs[:2], 1, hay_vigente=True)
+    assert con_vigente.splitlines() == [
+        "No pude armar un itinerario que cumpla todo lo que pediste (1 intento).",
+        f"Lo que no logré cumplir: {p}, {c}.",
+        "Detalle del último intento:",
+        "- Día 1: te pasás 10 EUR.",
+        "- Día 1: X cierra a las 17:00.",
+        "Si querés, cambiá alguna de esas condiciones (días, horario, presupuesto, zona) y lo intento de nuevo.",
+        "Tu itinerario anterior sigue vigente.",
+    ]
 
 
 def test_explicar_sin_candidatas_cuenta_motivos(corpus):
@@ -370,6 +398,10 @@ def test_explicar_sin_candidatas_cuenta_motivos(corpus):
         "- el turista pidió evitarla (1 bodega)",
         "Si cambiás alguna condición (días, zona, presupuesto, idioma), lo intento de nuevo.",
     ]
+    assert explicar_sin_candidatas(corpus.values(), perfil, cuantos=1).splitlines()[2:] == [
+        "- no abre ninguno de los días del viaje (lun) (3 bodegas)",
+        "Si cambiás alguna condición (días, zona, presupuesto, idioma), lo intento de nuevo.",
+    ]
     assert explicar_sin_candidatas([], perfil).splitlines() == [
         "No encontré bodegas que cumplan a la vez todo lo que pediste.",
         "Si cambiás alguna condición (días, zona, presupuesto, idioma), lo intento de nuevo.",
@@ -379,8 +411,9 @@ def test_explicar_sin_candidatas_cuenta_motivos(corpus):
 def test_avisar_zonas_desconocidas_texto():
     t = avisar_zonas_desconocidas(["Alsacia", "Loira"], ["Côte de Nuits", "Chablis y Grand Auxerrois", "Côte de Nuits",
                                                          ""])
-    assert "No reconozco la zona Alsacia" in t and "Loira" in t
-    assert "Chablis y Grand Auxerrois, Côte de Nuits" in t  # sin repetir, sin vacías, en orden alfabético
+    # sin repetir, sin vacías, en orden alfabético
+    assert t == ("No reconozco la zona Alsacia, Loira. Las zonas de Borgoña que conozco son: Chablis y Grand "
+                 "Auxerrois, Côte de Nuits. ¿En cuál querés visitar bodegas?")
 
 
 def test_contexto_planificador_con_pedido_de_ajuste(corpus):
