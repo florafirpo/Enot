@@ -329,3 +329,10 @@ def test_cli_reporte_con_calibracion_y_errores(entorno, escenario, capsys):
     p.write_text(json.dumps({"m": {"entrada_usd_por_millon": -1, "salida_usd_por_millon": 1}}), encoding="utf-8")
     assert rep.main([str(r), "--precios", str(p)]) == 1
     assert capsys.readouterr().err.startswith("[reporte] tabla de precios inválida")
+
+
+def test_render_muestra_infactibles_detectados(escenario):
+    reporte, juicios = escenario
+    reporte.metricas["enot"] = _metricas(2 / 3, infactibles_detectados=0.75)
+    md = render_markdown(reporte, filas_sistemas(reporte, juicios, PRECIOS), origen="r", precios_cargados=True)
+    assert "| enot | 66.7% | 0.0% | 50.0% | 0.20 | 75.0% | 4.00 | 4.00 | 2 (0) |" in md.splitlines()

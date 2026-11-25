@@ -333,3 +333,9 @@ def test_cli_planilla_por_defecto_y_con_carpetas(entorno, corpus, capsys):
     capsys.readouterr()
     assert cal.main(["calibrar", str(entorno / "no-existe.json")]) == 1
     assert capsys.readouterr().err.startswith("[calibrar] ")
+
+
+def test_motivo_con_valores_bajo_el_umbral():
+    puntajes = [1 + i % 5 for i in range(MINIMO_CASOS)]
+    opuestos = calibrar(_anotaciones([6 - p for p in puntajes]), _juicios(puntajes))
+    assert opuestos.motivo == "Spearman -1.00 < 0.6; kappa cuadrático -1.00 < 0.6"

@@ -174,3 +174,42 @@ def test_cli_juez_escribe_sin_pisar(entorno, corpus, monkeypatch):
 def test_cli_juez_reporte_inexistente(entorno, capsys):
     assert juez.main([str(config.REPORTS_DIR / "no-existe.json")], crear_cliente=lambda: None) == 1
     assert "no existe" in capsys.readouterr().err
+
+
+# --- sobrevivientes de mutation (eval/juez.py) ------------------------------------------------------------------------
+
+def test_texto_itinerario_sigue_despues_de_una_bodega_inventada_y_omite_lo_vacio(corpus):
+    it = itinerario("b0:Domaine Inventado", "sint-beaune")
+    texto = juez.texto_itinerario(it, corpus)
+    assert texto.splitlines() == ["Día 1 (viernes):", "- Domaine Inventado: fuera del corpus, sin datos.",
+                                  "- [SINTÉTICA] Domaine Beaune Centre: zona Côte de Beaune; comuna Beaune."]
+    sin_nada = corpus["sint-beaune"].model_copy(update={"zona": "", "comuna": ""})
+    assert juez.texto_itinerario(itinerario("sint-beaune"), {"sint-beaune": sin_nada}).splitlines()[1] == \
+        "- [SINTÉTICA] Domaine Beaune Centre: ."
+
+
+def test_escribir_sin_pisar_numera_desde_2(tmp_path):
+    rutas = [juez.escribir_sin_pisar(str(i), tmp_path / "a" / "b", "juez_dev_x") for i in range(3)]
+    assert [r.name for r in rutas] == ["juez_dev_x.json", "juez_dev_x-2.json", "juez_dev_x-3.json"]
+    assert [r.read_text(encoding="utf-8") for r in rutas] == ["0", "1", "2"]
+
+
+def test_juicio_mide_latencia_y_fecha(corpus, monkeypatch):
+    relojes = iter([100.0, 102.5, 200.0, 201.0])
+    monkeypatch.setattr(juez.time, "perf_counter", lambda: next(relojes))
+    ok = juzgar(ClienteFalso([{"justificacion": "x", "puntaje": 3}]), consulta(), salida(), corpus)
+    assert ok.latencia_s == pytest.approx(2.5)
+    err = juzgar(ClienteFalso(["no es json"]), consulta(), salida(), corpus)
+    assert err.latencia_s == pytest.approx(1.0)
+    monkeypatch.undo()
+    js = juzgar_reporte(ClienteFalso([{"justificacion": "x", "puntaje": 3}]), _reporte(), [consulta("q1"),
+                        consulta("q2", preferencias=None)], {}, origen="r")
+    import re
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}-\d{6}", js.fecha)
+
+
+def test_cli_juez_sin_fichas(entorno, capsys):
+    ruta_reporte = config.REPORTS_DIR / "eval_dev_x.json"
+    ruta_reporte.write_text(_reporte().model_dump_json(), encoding="utf-8")
+    assert juez.main([str(ruta_reporte)], crear_cliente=lambda: None) == 1   # data/fichas/fichas.jsonl no existe
+    assert "no existe el corpus de fichas" in capsys.readouterr().err
