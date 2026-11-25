@@ -128,6 +128,24 @@ def render_markdown(reporte, filas, origen, calibracion=None, precios_cargados=F
 - **`resultados.md` se reescribe**: es derivado y lleva en el encabezado de qué reportes sale; los reportes de
   entrada (`eval_*.json`, `juez_*.json`) nunca se pisan.
 
+## Cambios por la revisión 008 ronda 1
+- `texto_itinerario`/`contexto_juez`: la experiencia de una parada se muestra **solo si está en la ficha** (mismo
+  criterio que `eval.metricas`: nombre sin distinguir mayúsculas) y con el nombre de la ficha; una inventada no aparece.
+  Test: `test_contexto_juez_no_muestra_experiencias_inventadas`.
+- Planilla a ciegas de verdad: `COLUMNAS_PLANILLA = ("caso", "pedido", "itinerario", "puntaje_humano", "comentario")`
+  con un id opaco `caso_NN`; la correspondencia caso → (consulta_id, sistema) va en `ruta_claves(ruta)`
+  (`anotacion_humana_claves.csv`, `COLUMNAS_CLAVES = ("caso", "consulta_id", "sistema")`), que no se abre al anotar.
+  `escribir_planilla` escribe los dos y no pisa ninguno; `leer_anotaciones` los cruza (caso desconocido o claves
+  faltantes → error). Tests: `test_planilla_ciega_ningun_sistema_a_la_vista`, `test_leer_anotaciones_sin_claves` y
+  los de planilla adaptados a la columna `caso`.
+- `filas_sistemas` usa solo juicios cuyo (consulta_id, sistema) es una salida `itinerario` del reporte;
+  `verificar_juicios(juicios, reporte, ruta)` da `ValueError` si el split o el archivo de origen no coinciden, y el CLI
+  sale con 1. Tests: `test_filas_ignoran_juicios_de_otras_consultas`, `test_verificar_juicios_de_otra_corrida`,
+  `test_cli_reporte_rechaza_juicios_de_otro_reporte`.
+- `usage` ausente en endpoints compatibles: queda como limitación declarada (ADR-0018, notas del reporte) y decisión
+  pendiente de Flora; no se cambia `ClienteLLM` en este ítem.
+- Makefile: `juez`, `planilla`, `calibrar` y `reporte` cortan con un mensaje si falta `EVAL`/`JUICIOS`.
+
 ## Cómo se verifica
 Tests nuevos (archivos nuevos; ningún test existente se modifica):
 
