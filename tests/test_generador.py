@@ -67,7 +67,7 @@ def test_misma_semilla_mismo_set():
     assert [c.model_dump() for c in a] == [c.model_dump() for c in b]
 
 
-HUELLA = "562f86ad82a0f41a"  # sha256 (16 primeros) del set de la semilla por defecto, versión 006.1
+HUELLA = "PENDIENTE"  # sha256 (16 primeros) del set de la semilla por defecto, versión 006.2
 
 
 def test_huella_del_set_por_defecto():
@@ -75,7 +75,7 @@ def test_huella_del_set_por_defecto():
     cuota o el orden de los sorteos, este test obliga a subir VERSION_GENERADOR (el set se versiona, ADR-0007)."""
     import hashlib
     datos = json.dumps([c.model_dump(mode="json") for c in generar()], ensure_ascii=False, sort_keys=True)
-    assert (g.VERSION_GENERADOR, hashlib.sha256(datos.encode()).hexdigest()[:16]) == ("006.1", HUELLA)
+    assert (g.VERSION_GENERADOR, hashlib.sha256(datos.encode()).hexdigest()[:16]) == ("006.2", HUELLA)
 
 
 def test_otra_semilla_otro_set():
@@ -170,6 +170,22 @@ def test_escenarios_varian_su_dimension(consultas):
     assert any(r.personas == 1 for r in otros) and any(r.personas == 2 for r in otros)
     con_pref = [c for c in consultas if not c.infactible and c.restricciones.preferencias]
     assert 10 <= len(con_pref) <= 70
+
+
+PLURAL = ("tenemos", "queremos", "nos movemos", "buscamos", "preferimos", "tomamos", "hablamos", "llegamos",
+          "empezamos", "podemos", "nos interesa", "nos encanta", "nos gustaria", "vamos", "somos")
+
+
+@pytest.mark.parametrize("semilla", [g.SEMILLA, 1, 2])
+def test_una_persona_habla_en_singular(semilla):
+    cs = generar(semilla)
+    solos = [c for c in cs if c.restricciones.personas == 1]
+    assert len(solos) >= 5
+    for c in solos:
+        assert not contiene(c.texto, *PLURAL), (c.id, c.texto)
+    # el plural sigue ahí para los grupos (no se "arregló" pasando todo a singular)
+    assert sum(contiene(c.texto, *PLURAL) for c in cs if c.restricciones.personas > 1) >= 60
+    assert not any("[" in c.texto or "]" in c.texto or "|" in c.texto for c in cs)
 
 
 def test_bici_y_a_pie_factibles_con_una_sola_zona(consultas):
@@ -372,6 +388,22 @@ def test_escribir_set_no_pisa_test(tmp_path, existente):
     otra = "dev" if existente == "test" else "test"
     assert not (base / otra).exists()
     assert not (base / "revision_manual.csv").exists() and not (base / "generacion.json").exists()
+
+
+def test_escribir_set_falla_a_mitad_no_deja_nada(tmp_path, monkeypatch):
+    base = tmp_path / "eval"
+
+    def falla(*a, **k):
+        raise OSError("disco lleno")
+    monkeypatch.setattr(g.json, "dumps", falla)
+    with pytest.raises(OSError):
+        escribir_set(base)
+    assert not (base / "dev").exists() and not (base / "test").exists()
+    assert not (base / "revision_manual.csv").exists()
+    assert not base.exists() or list(base.iterdir()) == []
+    monkeypatch.undo()
+    assert escribir_set(base).test == 40
+    assert sorted(p.name for p in base.iterdir()) == ["dev", "generacion.json", "revision_manual.csv", "test"]
 
 
 def test_tasa_error_revision(tmp_path):
