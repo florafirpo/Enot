@@ -77,7 +77,7 @@ Cada ítem respeta los ADRs.
   - Incluye pedidos infactibles etiquetados como tales. Muestra del 20% en `data/eval/revision_manual.csv`.
   - Aceptación: misma semilla → mismo set; proporciones por escenario; ninguna consulta repetida.
 
-- [~] **007 · Baselines, métricas y `make eval`** (29/11) · rama `noche/2026-11-25-007` (en revisión del companero)
+- [x] **007 · Baselines, métricas y `make eval`** (29/11) · rama `noche/2026-11-25-007` (aprobado por companero en ronda 2)
   - `eval/baselines.py`: B0 (LLM zero-shot, sin corpus), B1 (filtros + greedy por cercanía, sin LLM),
     B2 (Enot con `max_intentos=1`).
   - `eval/metricas.py`: hard pass rate, tasa de alucinación, cobertura del corpus + Gini, infactibles bien
