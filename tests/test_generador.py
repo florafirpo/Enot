@@ -38,8 +38,10 @@ def norm(t: str) -> str:
 
 def contiene(texto: str, *opciones: str) -> bool:
     """Alguna de las opciones aparece como palabras enteras en el texto (sin mayúsculas ni tildes)."""
-    n = " " + " ".join(re.findall(r"[a-z0-9:]+", norm(texto))) + " "
-    return any(" " + " ".join(re.findall(r"[a-z0-9:]+", norm(o))) + " " in n for o in opciones)
+    def palabras(t):
+        return " " + " ".join(re.findall(r"\d{1,2}:\d{2}|[a-z0-9]+", norm(t))) + " "
+    n = palabras(texto)
+    return any(palabras(o) in n for o in opciones)
 
 
 @pytest.fixture(scope="module")
