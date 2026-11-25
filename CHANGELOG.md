@@ -24,6 +24,10 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
 - ADR-0017 (propuesto). Spec 007.
 - 82 tests nuevos (384 → 466), ningún test existente modificado. Mutation: `eval/metricas.py` 326/328 (99%),
   `eval/baselines.py` 395/419 (94%, no obligatorio).
+- Ronda 2 (revisión 007 ronda 1, CAMBIOS): la bodega inventada de B0 en los tests está marcada `[SINTÉTICA]`; la
+  latencia se prueba con un reloj falso; `test_b1_sobre_la_muestra_real` reproduce las cifras de la muestra real
+  (ADR-0017 suma que "factible" no está certificado contra el corpus, caso q047); se corrigió la justificación de un
+  mutante equivalente. 467 tests.
 
 ## 2026-11-25 · noche/2026-11-25-006 · generador del set de evaluación
 - `eval/generador.py`: 100 consultas desde plantillas, con la etiqueta como `PerfilViaje` (más `bodegas_por_dia`,

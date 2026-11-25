@@ -73,6 +73,10 @@ podría verse bien sin significar nada (lineamientos D.3 y D.6):
   hay violación), B1 sobre las 200 bodegas de la muestra real, que solo tienen coordenadas, da 98,75%. El número
   solo dice algo cuando la extracción completa horarios y precios. Hay que reportarlo junto con la completitud del
   corpus.
+- **"Factible" no está certificado contra el corpus.** El generador certifica solo los infactibles (ADR-0016). Una
+  consulta "factible" puede ser imposible con un corpus chico: en la muestra, q047 pide 3 días en las Hautes-Côtes,
+  que tienen una sola bodega, y B1 (que no repite) falla. Con el corpus completo hay que mirar qué factibles fallan
+  en todos los sistemas antes de atribuírselo a uno. Lo reproduce `test_b1_sobre_la_muestra_real`.
 - **Infactibles.** Mientras `PerfilViaje` no tenga `bodegas_por_dia` ni `zonas_mismo_dia`, la tasa total va a ser
   baja para todos los sistemas, salvo B0, que puede decir "imposible". Se lee junto con el desglose.
 - **B0 por nombre.** La resolución exige el nombre completo normalizado. Un nombre real con otra grafía ("Dom." por
@@ -87,4 +91,5 @@ podría verse bien sin significar nada (lineamientos D.3 y D.6):
   segunda franja, máximo por día, sin repetir), B2 entrega la propuesta inválida y Enot la válida.
 - `tests/test_correr_eval.py`: la corrida con el set real del generador y el corpus sintético, los errores de un
   sistema, el reporte que no pisa y que B1 no crea cliente LLM.
+- `test_b1_sobre_la_muestra_real`: las cifras de la muestra real citadas arriba.
 - `make mutation MODULO=eval/metricas.py`: 326/328.
