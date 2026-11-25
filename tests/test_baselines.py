@@ -241,3 +241,25 @@ def test_cada_consulta_tiene_su_propia_sesion(corpus, indice, tmp_path):
     # la segunda no es un ajuste de la primera ni suma sus tokens
     assert (a.tokens_in, b.tokens_in) == (300, 300)
     assert len(list((tmp_path / "trazas").glob("*.jsonl"))) == 2
+
+
+# --- latencia y tokens (sobrevivientes de mutation) ---------------------------------------------
+
+def test_latencia_medida(corpus, indice, tmp_path):
+    g = Guion(relevamiento=[PERFIL], planificador=[VALIDO], respuesta=[SALIDA_RESPUESTA])
+    salidas = [BaselineB1(corpus).correr(consulta()),
+               BaselineB1(corpus).correr(consulta(zonas_preferidas=["Champagne"])),
+               BaselineB1(corpus).correr(consulta(cantidad_dias=2, dia_inicio="dom", zonas_preferidas=["Chablis"])),
+               BaselineB0(ClienteFalso([SALIDA_B0]), corpus).correr(consulta()),
+               crear_enot(cliente(g), corpus, indice, tmp_path / "t").correr(consulta())]
+    assert [s.tipo for s in salidas] == ["itinerario", "sin_candidatas", "infactible", "itinerario", "itinerario"]
+    assert all(0 <= s.latencia_s < 60 for s in salidas)
+    assert all(s.texto for s in salidas[1:3])
+
+
+def test_tokens_desconocidos_si_una_llamada_fallo(corpus, indice, tmp_path):
+    # el relevamiento devuelve basura: la traza registra el error con tokens None (ADR-0014); no se inventa un 0
+    g = Guion(relevamiento=["esto no es JSON"])
+    s = crear_enot(cliente(g), corpus, indice, tmp_path / "t").correr(consulta())
+    assert s.tipo == "error"
+    assert s.tokens_in is None and s.tokens_out is None
