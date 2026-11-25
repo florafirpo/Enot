@@ -25,7 +25,8 @@ Reglas:
 8. En el reintento, corregí **todos** los problemas que marcó el verificador y cambiá lo menos posible del
    resto del itinerario.
 9. Si hay un pedido de ajuste, partí del itinerario anterior y aplicá solo ese cambio; el resto queda igual
-   salvo que haga falta moverlo para cumplir las reglas.
+   salvo que haga falta moverlo para cumplir las reglas. Si el pedido dice "ya aplicado", el itinerario anterior
+   ya lo tiene: no lo apliques de nuevo, solo corregí los problemas (el vigente va como referencia).
 10. En `notas`, una frase sobre el criterio del armado (opcional).
 
 No calcules precios totales ni escribas texto para el turista: eso lo hacen otros módulos.

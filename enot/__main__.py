@@ -52,7 +52,11 @@ def flujo_desde_args(args, cliente=None, embedder=None) -> Flujo:
     if cliente is None:
         from corpus.llm import ClienteLLM
 
-        cliente = ClienteLLM()
+        try:
+            cliente = ClienteLLM()
+        except Exception as e:  # noqa: BLE001 — falta la clave, proveedor desconocido, SDK no instalado
+            raise ErrorConfiguracion(f"No pude crear el cliente del LLM ({e}). Revisá LLM_PROVIDER, LLM_MODEL y la "
+                                     f"clave en .env.") from e
     if embedder is None:
         embedder = EmbedderConCache(EmbedderOpenAI())
     indice = Indice(list(corpus.values()), embedder)
@@ -85,7 +89,12 @@ def main(argv: Optional[list[str]] = None, leer: Callable[[str], str] = input, e
             continue
         if texto.casefold() in SALIR:
             break
-        respuesta = flujo.turno(sesion, texto)
+        try:
+            respuesta = flujo.turno(sesion, texto)
+        except KeyboardInterrupt:
+            # el turno quedó a medias: no se guarda (el archivo conserva el último turno completo)
+            escribir("\n(turno interrumpido: la sesión queda como estaba antes de este mensaje)")
+            break
         escribir(f"\nenot> {respuesta.texto}")
         if ruta is not None:
             sesion.guardar(ruta)

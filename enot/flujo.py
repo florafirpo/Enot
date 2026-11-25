@@ -127,9 +127,9 @@ def explicar_sin_candidatas(bodegas: Iterable[Bodega], perfil: PerfilViaje, cuan
 
 def avisar_zonas_desconocidas(zonas: Sequence[str], conocidas: Iterable[str]) -> str:
     """En vez de presentar el pedido como infactible, decir que la zona no está en la base (revisión 003)."""
-    nombres = ", ".join(zonas)
+    nombres = ("la zona " if len(zonas) == 1 else "las zonas ") + ", ".join(zonas)
     lista = ", ".join(sorted({z for z in conocidas if z}))
-    return (f"No reconozco la zona {nombres}. Las zonas de Borgoña que conozco son: {lista}. "
+    return (f"No reconozco {nombres}. Las zonas de Borgoña que conozco son: {lista}. "
             f"¿En cuál querés visitar bodegas?")
 
 
@@ -199,8 +199,11 @@ class Flujo:
             if not self._sin_tope(traza):
                 return Respuesta(tipo="tope_tokens", texto=_texto_tope(self.tope_tokens), intentos=intento - 1,
                                  itinerario=propuesta, violaciones=violaciones)
+            # en el reintento de un ajuste, `previo` (la propuesta fallida) ya trae el pedido aplicado: el vigente
+            # va aparte como referencia para que el planificador no aplique el pedido dos veces
             propuesta = planificar(perfil, candidatas, violaciones, self.cliente, traza, itinerario_previo=previo,
-                                   intento=intento, pedido_ajuste=pedido)
+                                   intento=intento, pedido_ajuste=pedido,
+                                   vigente_ajuste=vigente if intento > 1 and pedido is not None else None)
             v = verificar_completo(propuesta, perfil, self.corpus)
             if v.factible:
                 return self._entregar(sesion, perfil, propuesta, v.advertencias, intento, traza)
