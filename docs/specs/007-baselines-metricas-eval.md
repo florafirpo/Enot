@@ -204,9 +204,13 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
   (hard pass False) y Enot la válida (hard pass True).
 - `test_sistema_enot_sin_entregar_sin_verificar_no_cambia_el_tipo`.
 - `test_cada_consulta_tiene_su_propia_sesion` — una sesión y una traza por consulta; los tokens no se acumulan.
-- `test_latencia_medida` — B0, B1 (en sus tres salidas) y Enot miden una latencia entre 0 y 60 s.
+- `test_latencia_medida` — con un reloj falso que avanza 1,5 s por lectura: B0 y B1 (en sus tres salidas) miden
+  exactamente 1,5 s y Enot 10,5 s (sus nodos leen el mismo reloj).
 - `test_tokens_desconocidos_si_una_llamada_fallo` — si un evento de la traza tiene tokens `None` (llamada fallida),
   los tokens de la salida quedan en `None`: no se inventa un 0 (mismo criterio que ADR-0014).
+- `test_b1_sobre_la_muestra_real` (revisión ronda 1) — `skip` sin `data/datatourisme/muestra.csv`: B1 sobre las 100
+  consultas del generador y la muestra real; invariantes (no inventa, detecta zona fuera) y, si la huella de la muestra
+  coincide, las cifras de ADR-0017 (hard pass 79/80, falla solo q047; cobertura 0,41; infactibles 0,3).
 
 ### `tests/test_correr_eval.py`
 - `test_cargar_consultas_sin_set` — `SetInexistente` con un mensaje que nombra el generador.
