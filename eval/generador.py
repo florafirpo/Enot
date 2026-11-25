@@ -512,7 +512,9 @@ def _jsonl(ruta: Path, consultas: Sequence[Consulta]) -> None:
 def escribir_set(destino: Path, semilla: int = SEMILLA,
                  parafraseador: Optional[Callable[[str], str]] = None) -> ResumenSet:
     """Genera y escribe dev, test, la planilla de revisión y la configuración. Todo o nada: no escribe si dev/ o
-    test/ existen, y si algo falla a mitad de camino no deja nada."""
+    test/ existen, y si algo falla mientras se arma no deja nada. Límite: el movimiento final de los cuatro elementos
+    (`replace` uno por uno) no es atómico entre sí; si falla a mitad (o el proceso muere ahí), puede quedar parte del
+    set y la próxima corrida da `SetExistente` (revisión 006 ronda 2)."""
     destino = Path(destino)
     existentes = [p for p in ("dev", "test") if (destino / p).exists()]
     if existentes:

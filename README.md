@@ -42,6 +42,19 @@ make mutation MODULO=enot/verificador.py   # ¿los tests detectarían un error?
 `--parafrasear` reescribe cada consulta con el LLM de `.env` y conserva las etiquetas. La tasa de error del generador
 sale de la columna `correcta` de la planilla (`eval.generador.tasa_error_revision`).
 
+## Correr la evaluación
+
+`make eval SPLIT=dev` (o `python -m eval.correr --split dev [--sistemas B0,B1,B2,enot] [--limite N]`) corre los
+cuatro sistemas sobre el split y escribe `reports/eval_<split>_<fecha>.json` con la configuración, las métricas por
+sistema, la evaluación de cada consulta y lo que entregó cada sistema (spec 007, ADR-0017):
+
+- **B0**: el pedido directo al LLM, sin corpus. **B1**: formulario + filtros + greedy por cercanía, sin LLM.
+  **B2**: Enot con un intento y sin verificador de guardia. **enot**: el flujo completo.
+- Métricas: hard pass rate (todo o nada, contra la etiqueta), tasa de alucinación, cobertura del corpus + Gini e
+  infactibles bien detectados (total, por motivo y sobre los que el sistema puede representar).
+- Necesita `data/eval/` (generador) y `data/fichas/fichas.jsonl`. B0, B2 y enot usan el LLM y los embeddings de
+  `.env`; `make eval SISTEMAS=B1` corre sin claves.
+
 ---
 
 # Pipeline del corpus

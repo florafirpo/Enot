@@ -2,8 +2,10 @@
 PY ?= python
 MODULO ?= enot/verificador.py
 DT_CSV ?= data/datatourisme/datatourisme-reg-bfc.csv
+SPLIT ?= dev
+SISTEMAS ?= B0,B1,B2,enot
 
-.PHONY: install check test lint mutation tests-modificados registro datatourisme extract eda
+.PHONY: install check test lint mutation tests-modificados registro datatourisme extract eda eval
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -45,3 +47,7 @@ extract:
 
 eda:
 	$(PY) -m corpus eda
+
+# Benchmark (spec 007, ADR-0017): reports/eval_<split>_<fecha>.json. SISTEMAS=B1 corre sin claves.
+eval:
+	$(PY) -m eval.correr --split $(SPLIT) --sistemas $(SISTEMAS)
