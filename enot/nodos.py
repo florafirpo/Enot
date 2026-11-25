@@ -193,7 +193,7 @@ def _ficha_para_planificar(b: Bodega) -> dict:
 
 
 def contexto_planificador(perfil: PerfilViaje, candidatas: list[Bodega], violaciones_previas: list[Violacion],
-                          itinerario_previo: Optional[Itinerario]) -> str:
+                          itinerario_previo: Optional[Itinerario], pedido_ajuste: Optional[str] = None) -> str:
     corpus = {b.id: b for b in candidatas}
     partes = ["## Perfil del turista", perfil.model_dump_json(indent=2),
               "## Días del viaje", *(f"Día {n}: {d}" for n, d in enumerate(dias_del_viaje(perfil), 1)),
@@ -210,15 +210,21 @@ def contexto_planificador(perfil: PerfilViaje, candidatas: list[Bodega], violaci
     if violaciones_previas:
         partes += ["## Problemas que encontró el verificador en el itinerario anterior (corregilos todos)",
                    *(f"- {v.mensaje}" for v in violaciones_previas)]
+    if pedido_ajuste is not None:
+        # ajuste conversacional (005): el pedido es texto del turista, va como dato (C.9)
+        pedido = pedido_ajuste.replace("<", "‹").replace(">", "›")
+        partes += ["## Pedido de ajuste del turista (editá el itinerario anterior: cambiá solo lo que pide)",
+                   f"<pedido>{pedido}</pedido>"]
     return "\n".join(partes)
 
 
 def planificar(perfil: PerfilViaje, candidatas: list[Bodega], violaciones_previas: list[Violacion], cliente,
-               traza: Traza, itinerario_previo: Optional[Itinerario] = None, intento: int = 1) -> Itinerario:
+               traza: Traza, itinerario_previo: Optional[Itinerario] = None, intento: int = 1,
+               pedido_ajuste: Optional[str] = None) -> Itinerario:
     if not candidatas:
         raise ValueError("no hay candidatas para planificar: el flujo tiene que informarlo antes de llamar al LLM")
     modelo = modelo_salida_planificador([b.id for b in candidatas], perfil.cantidad_dias)
-    usuario = contexto_planificador(perfil, candidatas, violaciones_previas, itinerario_previo)
+    usuario = contexto_planificador(perfil, candidatas, violaciones_previas, itinerario_previo, pedido_ajuste)
     propuesta = _llamar(cliente, traza, "planificador", usuario, modelo, intento).objeto
     # número y día de la semana los pone el código, no el LLM
     dias = dias_del_viaje(perfil)
