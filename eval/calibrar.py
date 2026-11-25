@@ -32,15 +32,17 @@ from eval.correr import Reporte
 from eval.generador import Consulta
 from eval.juez import Juicios, cargar_entradas, escribir_sin_pisar, juzgable, texto_itinerario
 
-__all__ = ["COLUMNAS_PLANILLA", "MINIMO_CASOS", "PUNTAJES", "UMBRAL_KAPPA", "UMBRAL_SPEARMAN", "Anotacion",
+__all__ = ["COLUMNAS_CLAVES", "COLUMNAS_PLANILLA", "MINIMO_CASOS", "PUNTAJES", "UMBRAL_KAPPA", "UMBRAL_SPEARMAN", "Anotacion",
            "Calibracion", "armar_planilla", "calibrar", "escribir_planilla", "kappa", "leer_anotaciones", "main",
-           "rangos", "spearman"]
+           "rangos", "ruta_claves", "spearman"]
 
 PUNTAJES = (1, 2, 3, 4, 5)
 UMBRAL_SPEARMAN = 0.6       # acuerdo "sustancial" (Landis y Koch: 0,61–0,80)
 UMBRAL_KAPPA = 0.6
 MINIMO_CASOS = 30           # PRD 6
-COLUMNAS_PLANILLA = ("consulta_id", "sistema", "pedido", "itinerario", "puntaje_humano", "comentario")
+# Lo que ve quien anota: un id opaco, sin el sistema (revisión 008 ronda 1). La correspondencia va en otro archivo.
+COLUMNAS_PLANILLA = ("caso", "pedido", "itinerario", "puntaje_humano", "comentario")
+COLUMNAS_CLAVES = ("caso", "consulta_id", "sistema")
 
 
 # --- estadísticos -------------------------------------------------------------------------------------------------
@@ -118,8 +120,9 @@ def armar_planilla(reporte: Reporte, consultas: Sequence[Consulta], corpus: dict
                    semilla: int = 2026) -> list[dict]:
     """`n` casos juzgables repartidos por sistema (ronda sobre los sistemas, cada uno barajado con la semilla).
 
-    Cada fila trae lo mismo que ve el juez (pedido e itinerario con datos del corpus) y no trae su puntaje ni el
-    nombre del sistema dentro del texto: la anotación es a ciegas. Si hay menos de `n` juzgables, van todos.
+    Cada fila trae lo mismo que ve el juez (pedido e itinerario con datos del corpus) bajo un id opaco (`caso_01`…),
+    más `consulta_id` y `sistema`, que `escribir_planilla` guarda en el archivo de claves y no en la planilla: la
+    anotación es a ciegas. Si hay menos de `n` juzgables, van todos.
     """
     if reporte.split != "dev":
         raise ValueError(f"la planilla de calibración sale de dev, no de {reporte.split!r}: calibrar mirando test "
@@ -138,36 +141,54 @@ def armar_planilla(reporte: Reporte, consultas: Sequence[Consulta], corpus: dict
             if colas[sistema] and len(elegidos) < n:
                 elegidos.append(colas[sistema].pop())
     rng.shuffle(elegidos)   # el orden de la planilla no delata el sistema
-    return [{"consulta_id": c.id, "sistema": s.sistema,
-             "pedido": f"{c.texto}\nPreferencias: {c.restricciones.preferencias}",
-             "itinerario": texto_itinerario(s.itinerario, corpus), "puntaje_humano": "", "comentario": ""}
-            for c, s in elegidos]
+    return [{"caso": f"caso_{i:02d}", "pedido": f"{c.texto}\nPreferencias: {c.restricciones.preferencias}",
+             "itinerario": texto_itinerario(s.itinerario, corpus), "puntaje_humano": "", "comentario": "",
+             "consulta_id": c.id, "sistema": s.sistema}
+            for i, (c, s) in enumerate(elegidos, 1)]
+
+
+def ruta_claves(ruta: Path) -> Path:
+    """`anotacion_humana.csv` → `anotacion_humana_claves.csv`: qué consulta y qué sistema es cada caso."""
+    ruta = Path(ruta)
+    return ruta.with_name(f"{ruta.stem}_claves{ruta.suffix}")
 
 
 def escribir_planilla(filas: Sequence[dict], ruta: Path) -> Path:
-    """Escribe el CSV. Nunca pisa uno existente: puede tener la anotación de Flora."""
-    ruta = Path(ruta)
-    if ruta.exists():
-        raise FileExistsError(f"ya existe {ruta}: no se pisa una planilla que puede estar anotada")
+    """Escribe la planilla (lo que se anota) y, aparte, sus claves (`ruta_claves`). No se abre el archivo de claves
+    al anotar. Nunca pisa ninguno de los dos: la planilla puede tener la anotación de Flora."""
+    ruta, claves = Path(ruta), ruta_claves(ruta)
+    for r in (ruta, claves):
+        if r.exists():
+            raise FileExistsError(f"ya existe {r}: no se pisa una planilla que puede estar anotada")
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    with ruta.open("x", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNAS_PLANILLA)
-        w.writeheader()
-        w.writerows(filas)
+    for r, columnas in ((ruta, COLUMNAS_PLANILLA), (claves, COLUMNAS_CLAVES)):
+        with r.open("x", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=columnas, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(filas)
     return ruta
 
 
-def leer_anotaciones(ruta: Path) -> list[Anotacion]:
-    """Lee la planilla. Un puntaje vacío es "sin anotar"; uno que no sea un entero de 1 a 5 es un error."""
-    anotaciones = []
+def _leer_csv(ruta: Path) -> list[dict]:
     with Path(ruta).open(encoding="utf-8", newline="") as f:
-        for fila in csv.DictReader(f):
-            crudo = (fila.get("puntaje_humano") or "").strip()
-            if crudo and crudo not in {str(p) for p in PUNTAJES}:
-                raise ValueError(f"puntaje_humano inválido para {fila['consulta_id']}/{fila['sistema']}: {crudo!r} "
-                                 "(tiene que ser un entero de 1 a 5, o vacío)")
-            anotaciones.append(Anotacion(consulta_id=fila["consulta_id"], sistema=fila["sistema"],
-                                         puntaje_humano=int(crudo) if crudo else None))
+        return list(csv.DictReader(f))
+
+
+def leer_anotaciones(ruta: Path) -> list[Anotacion]:
+    """Lee la planilla y la cruza con sus claves. Un puntaje vacío es "sin anotar"; uno que no sea un entero de 1 a 5,
+    o un caso que no está en las claves, es un error."""
+    claves = {f["caso"]: f for f in _leer_csv(ruta_claves(ruta))}
+    anotaciones = []
+    for fila in _leer_csv(ruta):
+        caso = fila["caso"]
+        if caso not in claves:
+            raise ValueError(f"{caso} no está en {ruta_claves(ruta)}")
+        crudo = (fila.get("puntaje_humano") or "").strip()
+        if crudo and crudo not in {str(p) for p in PUNTAJES}:
+            raise ValueError(f"puntaje_humano inválido para {caso}: {crudo!r} (tiene que ser un entero de 1 a 5, o "
+                             "vacío)")
+        anotaciones.append(Anotacion(consulta_id=claves[caso]["consulta_id"], sistema=claves[caso]["sistema"],
+                                     puntaje_humano=int(crudo) if crudo else None))
     return anotaciones
 
 
