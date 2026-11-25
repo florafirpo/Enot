@@ -51,15 +51,16 @@ def test_resolver_bodega(corpus):
     assert resolver_bodega("  domaine   BEAUNE centre ", corpus) == "sint-beaune"
     assert resolver_bodega("Chateau Pommard-Test", corpus) == "sint-pommard"
     assert resolver_bodega("[SINTÉTICA] Château Pommard Test", corpus) == "sint-pommard"
-    assert resolver_bodega("Domaine de la Romanée-Conti", corpus) is None
+    assert resolver_bodega("[SINTÉTICA] Domaine Inventado B0", corpus) is None
     assert resolver_bodega("Domaine Beaune", corpus) is None      # no alcanza con una parte del nombre
     assert resolver_bodega("", corpus) is None
 
 
+# [SINTÉTICA] respuesta guionada de B0: una bodega y un precio inventados a propósito (simulan una alucinación)
 SALIDA_B0 = {"es_posible": True, "motivo": None, "dias": [{"dia_semana": "vie", "paradas": [
     {"bodega": "Domaine Beaune Centre", "hora_inicio": "10:00", "duracion_min": 60,
      "experiencia": "Dégustation classique", "precio_por_persona_eur": 20},
-    {"bodega": "Domaine de la Romanée-Conti", "hora_inicio": "12:00", "duracion_min": 90,
+    {"bodega": "[SINTÉTICA] Domaine Inventado B0", "hora_inicio": "12:00", "duracion_min": 90,
      "experiencia": None, "precio_por_persona_eur": 250},
     {"bodega": "Château Pommard Test", "hora_inicio": "15:00", "duracion_min": 60,
      "experiencia": None, "precio_por_persona_eur": None},
@@ -74,11 +75,11 @@ def test_b0_salida(corpus):
     assert s.latencia_s >= 0
     [dia] = s.itinerario.dias
     assert (dia.numero, dia.dia_semana) == (1, "vie")
-    assert [p.bodega_id for p in dia.paradas] == ["sint-beaune", "b0:Domaine de la Romanée-Conti", "sint-pommard"]
+    assert [p.bodega_id for p in dia.paradas] == ["sint-beaune", "b0:[SINTÉTICA] Domaine Inventado B0", "sint-pommard"]
     assert [(p.hora_inicio, p.duracion_min, p.experiencia) for p in dia.paradas] == [
         ("10:00", 60, "Dégustation classique"), ("12:00", 90, None), ("15:00", 60, None)]
     assert [(p.bodega_id, p.experiencia, p.precio_por_persona_eur) for p in s.precios_afirmados] == [
-        ("sint-beaune", "Dégustation classique", 20), ("b0:Domaine de la Romanée-Conti", None, 250)]
+        ("sint-beaune", "Dégustation classique", 20), ("b0:[SINTÉTICA] Domaine Inventado B0", None, 250)]
     [llamada] = cli.llamadas
     assert llamada["sistema"] == PROMPT_B0
     assert "Quiero bodegas el viernes" in llamada["usuario"]
@@ -95,7 +96,7 @@ def test_b0_imposible_es_infactible(corpus):
 def test_b0_inventado_no_pasa(corpus):
     s = BaselineB0(ClienteFalso([SALIDA_B0]), corpus).correr(consulta())
     e = evaluar_consulta(consulta(), s, corpus)
-    # 3 bodegas + 1 experiencia + 2 precios; inventadas: Romanée-Conti y su precio
+    # 3 bodegas + 1 experiencia + 2 precios; inventadas: la bodega SINTÉTICA inventada y su precio
     assert (e.afirmaciones, e.inventadas) == (6, 2)
     assert "bodega_inexistente" in e.violaciones
     assert e.hard_pass is False
@@ -245,15 +246,33 @@ def test_cada_consulta_tiene_su_propia_sesion(corpus, indice, tmp_path):
 
 # --- latencia y tokens (sobrevivientes de mutation) ---------------------------------------------
 
-def test_latencia_medida(corpus, indice, tmp_path):
+class _Reloj:
+    """`time.perf_counter` falso: avanza 1,5 s en cada lectura."""
+
+    def __init__(self):
+        self.t = 100.0
+
+    def __call__(self):
+        self.t += 1.5
+        return self.t
+
+
+def test_latencia_medida(corpus, indice, tmp_path, monkeypatch):
+    import eval.baselines as baselines
+
     g = Guion(relevamiento=[PERFIL], planificador=[VALIDO], respuesta=[SALIDA_RESPUESTA])
+    enot = crear_enot(cliente(g), corpus, indice, tmp_path / "t")
+    b0 = BaselineB0(ClienteFalso([SALIDA_B0]), corpus)
+    # `time` es un solo módulo: los nodos de Enot también leen este reloj (2 lecturas por llamada al LLM)
+    monkeypatch.setattr(baselines.time, "perf_counter", _Reloj())
     salidas = [BaselineB1(corpus).correr(consulta()),
                BaselineB1(corpus).correr(consulta(zonas_preferidas=["Champagne"])),
                BaselineB1(corpus).correr(consulta(cantidad_dias=2, dia_inicio="dom", zonas_preferidas=["Chablis"])),
-               BaselineB0(ClienteFalso([SALIDA_B0]), corpus).correr(consulta()),
-               crear_enot(cliente(g), corpus, indice, tmp_path / "t").correr(consulta())]
+               b0.correr(consulta()), enot.correr(consulta())]
     assert [s.tipo for s in salidas] == ["itinerario", "sin_candidatas", "infactible", "itinerario", "itinerario"]
-    assert all(0 <= s.latencia_s < 60 for s in salidas)
+    # B0 y B1 leen el reloj al empezar y al terminar: una lectura de diferencia = 1,5 s. En Enot, entre medio leen
+    # los 3 nodos (relevamiento, planificador, respuesta): 1 + 3 × 2 = 7 lecturas = 10,5 s
+    assert [s.latencia_s for s in salidas] == pytest.approx([1.5, 1.5, 1.5, 1.5, 10.5])
     assert all(s.texto for s in salidas[1:3])
 
 
@@ -263,3 +282,50 @@ def test_tokens_desconocidos_si_una_llamada_fallo(corpus, indice, tmp_path):
     s = crear_enot(cliente(g), corpus, indice, tmp_path / "t").correr(consulta())
     assert s.tipo == "error"
     assert s.tokens_in is None and s.tokens_out is None
+
+
+# --- formato real -------------------------------------------------------------------------------
+
+# huella de la muestra con la que se midieron las cifras del reporte de la corrida 2026-11-25-1039 y de ADR-0017
+HUELLA_MUESTRA = "2e0a198d4559745f55c9ee3858e570fec74e61068f27606866e34b6377e6a122"
+
+
+def test_b1_sobre_la_muestra_real(entorno):
+    """Muestra real → paso `datatourisme` → B1 sobre las 100 consultas del generador, en memoria (sin data/eval/).
+
+    Reproduce las cifras citadas en ADR-0017. Si Flora cambia la muestra, solo se chequean los invariantes."""
+    import contextlib
+    import csv
+    import hashlib
+    import io
+
+    from corpus import config, datatourisme
+    from enot.modelos import Bodega
+    from eval.generador import generar
+    from eval.metricas import resumir
+
+    muestra = FIXTURES.parent.parent / "data" / "datatourisme" / "muestra.csv"
+    if not muestra.exists():
+        pytest.skip("sin data/datatourisme/muestra.csv")
+    with contextlib.redirect_stdout(io.StringIO()):
+        datatourisme.run(str(muestra))
+    bodegas = [Bodega(id=f["id"], nombre=f["nombre"], zona=f["zona"], comuna=f["comuna"],
+                      lat=float(f["lat"]) if f["lat"] else None, lon=float(f["lon"]) if f["lon"] else None)
+               for f in csv.DictReader(config.SEED_CSV.open(encoding="utf-8"))]
+    corpus = {b.id: b for b in bodegas}
+    consultas = generar()
+    m, evals = resumir(consultas, [BaselineB1(corpus).correr(c) for c in consultas], corpus)
+
+    # invariantes con cualquier muestra: B1 no inventa y detecta las zonas fuera de Borgoña (sin candidatas)
+    assert m.consultas == 100 and m.inventadas == 0 and m.tasa_alucinacion == 0
+    assert m.infactibles_detectados_por_motivo["zona_fuera_de_borgona"] == 1.0
+    assert m.infactibles_detectados_representables == 1.0
+
+    if hashlib.sha256(muestra.read_bytes()).hexdigest() == HUELLA_MUESTRA:
+        assert m.hard_pass_rate == pytest.approx(79 / 80)
+        assert [e.consulta_id for e in evals if e.hard_pass is False] == ["q047"]   # 3 días, una sola bodega
+        assert m.cobertura_corpus == pytest.approx(0.41)
+        assert m.gini == pytest.approx(0.8166, abs=1e-4)
+        assert m.infactibles_detectados == pytest.approx(0.3)
+        assert m.infactibles_detectados_por_motivo == pytest.approx(
+            {"demasiadas_bodegas": 0.0, "zona_fuera_de_borgona": 1.0, "zonas_lejanas": 0.0})
