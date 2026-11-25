@@ -244,3 +244,88 @@ def test_cli_reporte_escribe_resultados(entorno, escenario):
     assert rep.main([str(r), "--salida", str(destino)]) == 0
     assert destino.exists()
     assert rep.main([str(entorno / "no-existe.json")]) == 1
+
+
+# --- sobrevivientes de mutation (eval/reporte.py) ---------------------------------------------------------------------
+
+def test_costo_con_un_solo_token_desconocido():
+    # B0 con la salida a medias (entrada informada, salida no): sin costo
+    c = costo_consulta(sal("B0", tin=100, tout=None), None, con_llm=True, modelo="modelo-a", precios=PRECIOS)
+    assert (c.tokens_in, c.usd, c.sin_tokens) == (None, None, 1)
+    # evento de error con tokens de entrada pero sin los de salida: no es un evento con tokens conocidos
+    e = evento(estado="error", tin=300, tout=None)
+    c2 = costo_consulta(sal(), [evento(), e], con_llm=True, modelo="modelo-a", precios=PRECIOS)
+    assert (c2.sin_tokens, c2.tokens_in, c2.tokens_out, c2.usd) == (1, 1000, 500, None)
+
+
+def test_usd_exacto():
+    c = costo_consulta(sal(), [evento(tin=1_000_000, tout=0)], con_llm=True, modelo="modelo-a", precios=PRECIOS)
+    assert c.usd == pytest.approx(1.0, rel=1e-12, abs=0)
+
+
+def test_filas_pasan_las_metricas_y_toleran_evaluaciones_faltantes(escenario):
+    reporte, juicios = escenario
+    reporte.metricas["enot"] = _metricas(0.5, tasa_alucinacion=0.25, infactibles_detectados=0.75)
+    reporte.evaluaciones.pop("B0")
+    filas = {f.sistema: f for f in filas_sistemas(reporte, juicios, PRECIOS)}
+    assert filas["enot"].tasa_alucinacion == 0.25 and filas["enot"].infactibles_detectados == 0.75
+    assert filas["B0"].preferencia_media == 4 and filas["B0"].preferencia_media_hard_pass is None
+
+
+def test_render_markdown_filas_exactas(escenario):
+    from eval.calibrar import Calibracion
+
+    reporte, juicios = escenario
+    reporte.configuracion.update(consultas=3, bodegas_corpus=7)
+    filas = filas_sistemas(reporte, juicios, PRECIOS)
+    cal = Calibracion(pares=30, sin_anotar=0, sin_juicio=0, spearman=0.81, kappa=0.52, kappa_cuadratico=0.73,
+                      apto=True, motivo="ok")
+    md = render_markdown(reporte, filas, origen="reports/eval_dev_x.json", calibracion=cal, precios_cargados=True)
+    lineas = md.splitlines()
+    assert lineas[0] == "# Resultados del benchmark · split dev"
+    assert ("desde `reports/eval_dev_x.json` (corrida 2026-11-29-120000, commit `abc1234`, modelo `modelo-a`, "
+            "3 consultas, corpus de 7 bodegas)") in md
+    assert "## Calidad" in lineas and "## Costo y latencia (por consulta)" in lineas
+    assert ("| Sistema | Hard pass | Alucinación | Cobertura | Gini | Infactibles detectados | Preferencia (1–5) | "
+            "Preferencia con hard pass | Juicios (error) |") in lineas
+    assert "| enot | 66.7% | 0.0% | 50.0% | 0.20 | s/d | 4.00 | 4.00 | 2 (0) |" in lineas
+    assert "| B1 | 100.0% | s/d | 50.0% | 0.20 | s/d | 2.00 | 2.00 | 1 (1) |" in lineas
+    assert ("| Sistema | Consultas con costo | Tokens medios | USD medio | USD p95 | Latencia media (s) | "
+            "Latencia p95 (s) | Intentos medios | Llamadas (fallidas, sin tokens) | Salidas error |") in lineas
+    assert "| enot | 2/3 | 3250 | 0.0055 | 0.0080 | 20.00 | 30.00 | 2.00 | 5 (1, 1) | 0 |" in lineas
+    assert "| B1 | 3/3 | 0 | 0.0000 | 0.0000 | 0.50 | 0.75 | s/d | 0 (0, 0) | 0 |" in lineas
+    assert "| B0 | 2/3 | 1250 | 0.0020 | 0.0025 | 5.00 | 6.00 | 1.00 | s/t | 1 |" in lineas
+    assert "Calibración sobre 30 pares: Spearman 0.81, kappa 0.52, kappa cuadrático 0.73." in lineas
+    assert "Proyección a 1000 consultas por mes con el costo medio: enot 5.50 USD, B1 0.00 USD, B0 2.00 USD." in lineas
+    assert "--precios" not in md
+
+
+def test_render_markdown_sin_configuracion():
+    reporte = Reporte(split="test", fecha="f", configuracion={}, metricas={}, evaluaciones={}, salidas={})
+    md = render_markdown(reporte, [], origen="r")
+    assert "commit `s/d`, modelo `s/d`, s/d consultas, corpus de s/d bodegas" in md
+    assert "--precios" in md and "Proyección" not in md
+
+
+def test_cli_reporte_con_calibracion_y_errores(entorno, escenario, capsys):
+    from eval.calibrar import Calibracion
+
+    reporte, juicios = escenario
+    r = config.REPORTS_DIR / "eval_dev_x.json"
+    r.write_text(reporte.model_dump_json(), encoding="utf-8")
+    j = config.REPORTS_DIR / "juez_dev_x.json"
+    j.write_text(juicios.model_dump_json(), encoding="utf-8")
+    c = config.REPORTS_DIR / "calibracion_x.json"
+    c.write_text(Calibracion(pares=3, sin_anotar=0, sin_juicio=0, spearman=0.5, kappa=0.4, kappa_cuadratico=0.3,
+                             apto=False, motivo="3 pares < 30").model_dump_json(), encoding="utf-8")
+    destino = entorno / "a" / "b" / "resultados.md"
+    assert rep.main([str(r), "--juicios", str(j), "--calibracion", str(c), "--salida", str(destino)]) == 0
+    md = destino.read_text(encoding="utf-8")
+    assert f"desde `{r}`" in md
+    assert "| enot | 66.7% | 0.0% | 50.0% | 0.20 | s/d | 4.00 | 4.00 | 2 (0) |" in md   # usó los juicios
+    assert "3 pares < 30" in md and "--precios" in md
+    capsys.readouterr()
+    p = entorno / "precios.json"
+    p.write_text(json.dumps({"m": {"entrada_usd_por_millon": -1, "salida_usd_por_millon": 1}}), encoding="utf-8")
+    assert rep.main([str(r), "--precios", str(p)]) == 1
+    assert capsys.readouterr().err.startswith("[reporte] tabla de precios inválida")

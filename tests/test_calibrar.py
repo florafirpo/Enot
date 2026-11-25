@@ -258,3 +258,78 @@ def test_cli_planilla_y_calibrar(entorno, corpus):
     (salida_cal,) = config.REPORTS_DIR.glob("calibracion_*.json")
     leida = cal.Calibracion.model_validate_json(salida_cal.read_text(encoding="utf-8"))
     assert leida.pares == 4 and leida.apto is False
+
+
+# --- sobrevivientes de mutation (eval/calibrar.py) --------------------------------------------------------------------
+# Equivalentes (no se agregan tests, se explican en el reporte): en `spearman`, (a + mx) en vez de (a − mx) da la misma
+# covarianza porque Σ(b − my) = 0; en `kappa`, el divisor (k − 1)² y el peso 2 en vez de 1 escalan por igual Σw·O y
+# Σw·E y se cancelan; el valor inicial de `rangos` se pisa siempre; `strict` en zip ya está cubierto por el chequeo de
+# largos.
+
+def test_errores_con_mensaje():
+    with pytest.raises(ValueError, match="largo distinto"):
+        spearman([1, 2, 3], [1, 2])
+    with pytest.raises(ValueError, match="largo distinto"):
+        kappa([1, 2], [1])
+    with pytest.raises(ValueError, match="ponderación"):
+        kappa([1, 2], [1, 2], "lineal")
+    with pytest.raises(ValueError, match="escala"):
+        kappa([1, 6], [1, 1])
+
+
+def test_calibrar_cuenta_cada_faltante_y_usa_el_kappa_cuadratico():
+    juicios = _juicios([1, 2, 3, 4, 5, 1])
+    anot = _anotaciones([1, 2, 4, 5, None, None])            # dos sin anotar
+    c = calibrar(anot, juicios)
+    assert c.sin_anotar == 2 and c.pares == 4
+    assert c.kappa == pytest.approx(kappa([1, 2, 4, 5], [1, 2, 3, 4]))
+    assert c.kappa_cuadratico == pytest.approx(kappa([1, 2, 4, 5], [1, 2, 3, 4], "cuadratica"))
+    assert c.kappa != pytest.approx(c.kappa_cuadratico)
+
+
+def test_motivo_sin_dato():
+    c = calibrar(_anotaciones([3, 3, 3]), _juicios([3, 3, 3]))   # todo constante: ni Spearman ni kappa definidos
+    assert c.spearman is None and c.kappa_cuadratico is None and c.apto is False
+    assert c.motivo == "3 pares < 30; Spearman s/d < 0.6; kappa cuadrático s/d < 0.6"
+    ok = calibrar(_anotaciones([1 + i % 5 for i in range(30)]), _juicios([1 + i % 5 for i in range(30)]))
+    assert ok.motivo == "30 pares, Spearman 1.00 y kappa cuadrático 1.00 sobre los umbrales"
+
+
+def test_planilla_semilla_por_defecto_y_carpetas(tmp_path, corpus):
+    reporte, consultas = _reporte_planilla()
+    assert armar_planilla(reporte, consultas, corpus, n=5) == armar_planilla(reporte, consultas, corpus, n=5,
+                                                                              semilla=2026)
+    ruta = escribir_planilla(armar_planilla(reporte, consultas, corpus, n=2), tmp_path / "a" / "b" / "p.csv")
+    assert len(leer_anotaciones(ruta)) == 2
+    with pytest.raises(FileExistsError, match="ya existe"):
+        escribir_planilla([], ruta)
+    with pytest.raises(ValueError, match="test"):
+        armar_planilla(_reporte_planilla("test")[0], consultas, corpus)
+
+
+def test_cli_planilla_por_defecto_y_con_carpetas(entorno, corpus, capsys):
+    from corpus import config
+
+    reporte, consultas = _reporte_planilla()
+    carpeta = entorno / "otro_set"
+    (carpeta / "dev").mkdir(parents=True)
+    (carpeta / "dev" / "consultas.jsonl").write_text("".join(c.model_dump_json() + "\n" for c in consultas),
+                                                     encoding="utf-8")
+    ruta_rep = config.REPORTS_DIR / "eval_dev_x.json"
+    ruta_rep.write_text(reporte.model_dump_json(), encoding="utf-8")
+    fichas = entorno / "fichas.jsonl"
+    fichas.write_text((FIXTURES / "fichas_sinteticas.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
+
+    # sin --n ni --semilla: 30 casos (hay 17 juzgables) con la semilla 2026; sin --destino, va a la carpeta del set
+    assert cal.main(["planilla", str(ruta_rep), "--set", str(carpeta), "--fichas", str(fichas)]) == 0
+    filas = list(csv.DictReader((carpeta / "anotacion_humana.csv").open(encoding="utf-8")))
+    esperadas = armar_planilla(reporte, consultas, corpus, n=30, semilla=2026)
+    assert [(f["consulta_id"], f["sistema"]) for f in filas] == [(f["consulta_id"], f["sistema"]) for f in esperadas]
+
+    destino = entorno / "x" / "y.csv"
+    assert cal.main(["planilla", str(ruta_rep), "--set", str(carpeta), "--fichas", str(fichas), "--n", "3",
+                     "--semilla", "7", "--destino", str(destino)]) == 0
+    assert len(leer_anotaciones(destino)) == 3
+    capsys.readouterr()
+    assert cal.main(["calibrar", str(entorno / "no-existe.json")]) == 1
+    assert capsys.readouterr().err.startswith("[calibrar] ")
