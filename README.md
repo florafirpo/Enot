@@ -55,6 +55,23 @@ sistema, la evaluación de cada consulta y lo que entregó cada sistema (spec 00
 - Necesita `data/eval/` (generador) y `data/fichas/fichas.jsonl`. B0, B2 y enot usan el LLM y los embeddings de
   `.env`; `make eval SISTEMAS=B1` corre sin claves.
 
+### Juez, calibración y reporte final (spec 008, ADR-0018)
+
+Sobre un reporte ya escrito, sin volver a correr los sistemas:
+
+1. **Juez** (preference score, H2): `make juez EVAL=reports/eval_dev_<fecha>.json` → `reports/juez_dev_<fecha>.json`.
+   Rúbrica 1–5 en `eval/prompts/juez.md`; juzga solo consultas factibles con preferencias y con itinerario, a ciegas
+   y con los datos del corpus. Usa el LLM de `.env`.
+2. **Planilla para anotar** (solo dev): `make planilla EVAL=reports/eval_dev_<fecha>.json` →
+   `data/eval/anotacion_humana.csv` con 30 casos. Completar `puntaje_humano` (1 a 5) con la misma rúbrica. Nunca se
+   pisa una planilla existente.
+3. **Calibración**: `make calibrar JUICIOS=reports/juez_dev_<fecha>.json` → Spearman, kappa y kappa cuadrático en
+   `reports/calibracion_<fecha>.json`. Apto con 30 pares, Spearman ≥ 0,6 y kappa cuadrático ≥ 0,6.
+4. **Reporte**: `make reporte EVAL=reports/eval_test_<fecha>.json [JUICIOS=…] [CALIBRACION=…] [PRECIOS=precios.json]` →
+   `reports/resultados.md` con métricas, preference score, tokens, USD y latencia (media y p95) por sistema. Los
+   precios no están en el repo: `precios.json` es `{"<modelo>": {"entrada_usd_por_millon": x,
+   "salida_usd_por_millon": y}}`.
+
 ---
 
 # Pipeline del corpus

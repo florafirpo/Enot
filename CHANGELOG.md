@@ -2,6 +2,28 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-25 · noche/2026-11-25-008 · juez LLM calibrado y reporte de costos y latencia
+- `eval/juez.py` + `eval/prompts/juez.md`: juez con rúbrica 1–5 de ajuste a preferencias blandas (H2). Juzga solo
+  consultas factibles con preferencias y con itinerario; a ciegas (sin el sistema ni su texto) y con los datos de cada
+  bodega tomados del corpus, sin precios ni horarios. Salida `justificacion` + `puntaje`, sin "confianza".
+  `python -m eval.juez` / `make juez EVAL=…` → `reports/juez_<split>_<fecha>.json` (no pisa).
+- `eval/calibrar.py`: Spearman (rangos promedio en empates) y kappa de Cohen sin ponderar y cuadrático sobre 1–5;
+  apto con 30 pares, Spearman ≥ 0,6 y kappa cuadrático ≥ 0,6. Planilla de anotación (`make planilla`) solo de dev, a
+  ciegas, repartida por sistema, que nunca pisa `data/eval/anotacion_humana.csv`. `make calibrar JUICIOS=…`.
+- `eval/reporte.py` / `make reporte`: `reports/resultados.md` con métricas, preference score (total y con hard pass),
+  tokens, USD (media y p95), latencia (media y p95), intentos medios, llamadas fallidas y sin tokens, y proyección a
+  1000 consultas por mes. Costo por consulta desde su traza con el precio de cada modelo (PRD 9); precios por
+  `--precios` (no están en el repo). Una consulta con tokens desconocidos o modelo sin precio queda sin costo y se
+  cuenta: nunca un 0 inventado.
+- Pendientes de la revisión 004: `ClienteLLM` lanza `ErrorSalidaInvalida` (subclase de `RuntimeError`) con los tokens
+  gastados y el nodo los registra en el evento de error; `EventoTraza` con `estado == "ok"` exige tokens.
+  `SalidaSistema.traza` guarda la ruta de la traza de cada consulta de Enot/B2.
+- Makefile (`juez`, `planilla`, `calibrar`, `reporte`) y README. ADR-0018 (propuesto). Spec 008.
+- 60 tests nuevos (467 → 527) en archivos nuevos, ningún test existente modificado. Mutation: `eval/metricas.py`
+  326/328; `eval/calibrar.py` 444/536, `eval/reporte.py` 457/530, `eval/juez.py` 251/301 (los sobrevivientes son
+  textos de ayuda del CLI, prosa del Markdown, `encoding` y mutantes matemáticamente equivalentes; detalle en el
+  reporte).
+
 ## 2026-11-25 · noche/2026-11-25-007 · baselines, métricas y `make eval`
 - `eval/metricas.py` (funciones puras):
   - hard pass todo o nada contra la etiqueta: itinerario entregado, estructura completa (días, día de la semana y al
