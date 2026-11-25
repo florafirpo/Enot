@@ -19,10 +19,16 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
   gastados y el nodo los registra en el evento de error; `EventoTraza` con `estado == "ok"` exige tokens.
   `SalidaSistema.traza` guarda la ruta de la traza de cada consulta de Enot/B2.
 - Makefile (`juez`, `planilla`, `calibrar`, `reporte`) y README. ADR-0018 (propuesto). Spec 008.
-- 60 tests nuevos (467 → 527) en archivos nuevos, ningún test existente modificado. Mutation: `eval/metricas.py`
+- 60 tests nuevos (467 → 527; 533 tras la ronda 2) en archivos nuevos, ningún test existente modificado. Mutation: `eval/metricas.py`
   326/328; `eval/calibrar.py` 444/536, `eval/reporte.py` 457/530, `eval/juez.py` 251/301 (los sobrevivientes son
   textos de ayuda del CLI, prosa del Markdown, `encoding` y mutantes matemáticamente equivalentes; detalle en el
   reporte).
+- Ronda 2 (revisión 008 ronda 1, CAMBIOS): el juez solo ve experiencias que están en la ficha; la planilla de
+  anotación usa un id opaco por caso y guarda consulta y sistema en `anotacion_humana_claves.csv`; el reporte usa solo
+  juicios del mismo reporte y split (el CLI rechaza los de otra corrida); la limitación de `usage` ausente en
+  endpoints compatibles queda declarada (ADR-0018 y notas del reporte); el Makefile avisa si falta `EVAL`/`JUICIOS`.
+  533 tests. Mutation: `eval/calibrar.py` 467/560, `eval/reporte.py` 476/557, `eval/juez.py` 260/310 (los
+  sobrevivientes siguen siendo CLI, prosa, `encoding` y equivalentes).
 
 ## 2026-11-25 · noche/2026-11-25-007 · baselines, métricas y `make eval`
 - `eval/metricas.py` (funciones puras):

@@ -63,8 +63,9 @@ Sobre un reporte ya escrito, sin volver a correr los sistemas:
    Rúbrica 1–5 en `eval/prompts/juez.md`; juzga solo consultas factibles con preferencias y con itinerario, a ciegas
    y con los datos del corpus. Usa el LLM de `.env`.
 2. **Planilla para anotar** (solo dev): `make planilla EVAL=reports/eval_dev_<fecha>.json` →
-   `data/eval/anotacion_humana.csv` con 30 casos. Completar `puntaje_humano` (1 a 5) con la misma rúbrica. Nunca se
-   pisa una planilla existente.
+   `data/eval/anotacion_humana.csv` con 30 casos identificados como `caso_NN` (a ciegas: qué sistema es cada uno está
+   en `anotacion_humana_claves.csv`, que no hay que abrir al anotar). Completar `puntaje_humano` (1 a 5) con la misma
+   rúbrica. Nunca se pisa una planilla existente.
 3. **Calibración**: `make calibrar JUICIOS=reports/juez_dev_<fecha>.json` → Spearman, kappa y kappa cuadrático en
    `reports/calibracion_<fecha>.json`. Apto con 30 pares, Spearman ≥ 0,6 y kappa cuadrático ≥ 0,6.
 4. **Reporte**: `make reporte EVAL=reports/eval_test_<fecha>.json [JUICIOS=…] [CALIBRACION=…] [PRECIOS=precios.json]` →

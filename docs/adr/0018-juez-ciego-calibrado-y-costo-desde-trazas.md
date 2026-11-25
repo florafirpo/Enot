@@ -20,8 +20,9 @@ trazas". Quedaban sin decidir varias cosas que cambian el número:
 
 ## Decisión
 1. **Juez ciego y con el mismo contexto para todos.** Recibe el pedido, las preferencias etiquetadas y, por parada,
-   nombre, zona, comuna, experiencia, descripción y vinos **tomados del corpus**. Sin precios, horarios, nombre del
-   sistema ni texto del sistema. Una bodega fuera del corpus aparece como "fuera del corpus, sin datos". Salida
+   nombre, zona, comuna, descripción y vinos **tomados del corpus**, y la experiencia solo si está en la ficha (con el
+   nombre de la ficha; una experiencia que escribió el sistema y no está en la ficha no se muestra). Sin precios,
+   horarios, nombre del sistema ni texto del sistema. Una bodega fuera del corpus aparece como "fuera del corpus, sin datos". Salida
    `justificacion` y después `puntaje` (`Literal[1..5]`), sin "confianza" (lineamientos C.8).
 2. **Juzgable = consulta factible con `preferencias` + itinerario entregado con paradas**, de cualquier sistema. El
    reporte da la media total y la media sobre las consultas con hard pass ("a igual factibilidad", H2).
@@ -29,8 +30,11 @@ trazas". Quedaban sin decidir varias cosas que cambian el número:
    sobre las categorías 1–5 fijas. **Apto** si hay al menos 30 pares, Spearman ≥ 0,6 y kappa cuadrático ≥ 0,6
    (acuerdo "sustancial" de Landis y Koch). Si no es apto, el reporte lo dice y marca el preference score como
    evidencia débil.
-4. **La planilla de anotación sale solo de dev**, a ciegas (sin el puntaje del juez ni el sistema en el texto), con el
-   mismo texto que ve el juez, repartida por sistema con semilla fija, y nunca pisa un CSV existente.
+4. **La planilla de anotación sale solo de dev**, a ciegas: cada caso tiene un id opaco (`caso_NN`) y la
+   correspondencia con consulta y sistema va en un archivo aparte (`anotacion_humana_claves.csv`) que no se abre al
+   anotar. Lleva el mismo texto que ve el juez, sin su puntaje, repartida por sistema con semilla fija, y nunca pisa
+   ninguno de los dos archivos. **El reporte solo usa juicios del mismo reporte**: los cruza por (consulta, sistema)
+   con las salidas que entregaron itinerario, y el CLI rechaza juicios de otro split o de otro archivo de `make eval`.
 5. **Costo por consulta desde la traza de esa consulta** (la salida guarda la ruta), con el precio del modelo de cada
    llamada: C = Σ t_in·p_in + t_out·p_out (PRD 9). `ClienteLLM` lanza `ErrorSalidaInvalida` con los tokens exactos
    que gastó al agotar los intentos de validación, y el nodo los registra. Un error del proveedor sigue con `None`.
@@ -48,6 +52,7 @@ trazas". Quedaban sin decidir varias cosas que cambian el número:
 | Juzgar todas las consultas factibles | Más casos | Sin preferencias la rúbrica no discrimina: infla todo a 3 |
 | Kappa sin ponderar como criterio | Es el "kappa" literal del PRD | Escala ordinal: castiga igual un error de 1 punto que uno de 4 |
 | Spearman solo | Simple | Un juez que ordena bien pero puntúa 2 puntos de más pasa (lo detecta el kappa) |
+| Planilla con la columna `sistema` a la vista | Más simple de cruzar | La autora de Enot anota sabiendo qué sistema juzga: sesgo |
 | Calibrar con casos de test | Más representativo del resultado final | Ajustar la vara mirando el examen (lineamientos D.1, D.6) |
 | Fallidas como 0 tokens | Siempre hay un número | Abarata el sistema justo cuando reintenta o falla; dato inventado |
 | Precios en el código | El reporte sale con USD sin pasos extra | Precios sin verificar y que cambian: dato inventado (AGENTS.md) |
@@ -63,6 +68,10 @@ trazas". Quedaban sin decidir varias cosas que cambian el número:
   elección) y conviene decirlo al presentar H2/H3.
 - Los umbrales (0,6 y 30) son constantes en `eval/calibrar.py`; si Flora los cambia, lo anota acá.
 - El costo de B0 sale de la salida (no tiene traza): no cuenta llamadas fallidas, solo salidas `error`.
+- **Limitación conocida:** si un endpoint compatible con OpenAI no informa `usage`, `ClienteLLM._openai` registra 0
+  tokens (código anterior a este ítem) y esa llamada cuenta como gratis. Con la API de OpenAI o Anthropic no pasa. Se
+  declara en las notas del reporte; cambiarlo a "desconocido" implica decidir cómo se registra una llamada ok sin
+  tokens (decisión pendiente de Flora).
 - Revisar cuando Flora anote los 30 casos (30/11): si el juez no es apto, ajustar la rúbrica **en dev** y volver a
   calibrar con casos nuevos, no con los mismos.
 
