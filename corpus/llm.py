@@ -33,6 +33,17 @@ class Resultado:
     intentos: int
 
 
+class ErrorSalidaInvalida(RuntimeError):
+    """El modelo no devolvió una salida válida en `intentos` llamadas. Trae los tokens que se gastaron en esas
+    llamadas (exactos), para que el reporte de costos no los cuente como 0 (spec 008)."""
+
+    def __init__(self, mensaje: str, tokens_in: int, tokens_out: int, intentos: int):
+        super().__init__(mensaje)
+        self.tokens_in = tokens_in
+        self.tokens_out = tokens_out
+        self.intentos = intentos
+
+
 def esquema_sin_refs(modelo: Type[BaseModel]) -> dict:
     """Pydantic genera $defs/$ref; algunos proveedores los manejan mal. Los inlineamos."""
     esquema = modelo.model_json_schema()
@@ -95,7 +106,8 @@ class ClienteLLM:
                     ("user", f"La salida no valida contra el esquema. Error:\n{str(e)[:2000]}\n"
                              "Devolvé el JSON corregido completo."),
                 ]
-        raise RuntimeError(f"No se obtuvo una salida válida tras {max_intentos} intentos: {ultimo_error}")
+        raise ErrorSalidaInvalida(f"No se obtuvo una salida válida tras {max_intentos} intentos: {ultimo_error}",
+                                  tin, tout, max_intentos)
 
     # ------------------------------------------------------------------
     def _llamar(self, sistema, usuario, esquema, nombre, extra):

@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from corpus import config
 
@@ -33,6 +33,13 @@ class EventoTraza(BaseModel):
     intentos_validacion: Optional[int] = Field(None, ge=0, description="Llamadas que hizo ClienteLLM hasta validar")
     estado: Literal["ok", "error"]
     error: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _tokens_si_ok(self):
+        # una llamada que salió bien siempre informa sus tokens; None solo puede venir de un error (spec 008)
+        if self.estado == "ok" and (self.tokens_in is None or self.tokens_out is None):
+            raise ValueError("un evento con estado 'ok' tiene que traer tokens_in y tokens_out")
+        return self
 
 
 class Traza:

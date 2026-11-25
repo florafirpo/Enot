@@ -57,6 +57,7 @@ class SalidaSistema(BaseModel):
     tokens_in: Optional[int] = None
     tokens_out: Optional[int] = None
     latencia_s: float = 0.0
+    traza: Optional[str] = Field(None, description="Ruta de la traza de la consulta (Enot y B2), para el reporte")
 
 
 class EvaluacionConsulta(BaseModel):
