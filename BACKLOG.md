@@ -59,7 +59,7 @@ Cada ítem respeta los ADRs.
   - Aceptación: con `ClienteFalso`, cada nodo arma el contexto esperado (incluye las violaciones previas en
     el reintento) y valida la salida; el relevamiento repregunta si falta un dato obligatorio.
 
-- [ ] **005 · Flujo completo con loop de verificación + CLI (tracer bullet)** (27/11)
+- [x] **005 · Flujo completo con loop de verificación + CLI (tracer bullet)** (27/11) · rama `noche/2026-11-24-005` (aprobado por companero en ronda 2)
   - `enot/flujo.py`: `Sesion` serializable y el workflow de ADR-0003 con circuit breaker
     (`max_intentos=3`, tope de tokens). `max_intentos=1` = ablación B2.
   - `python -m enot`: chat por consola; `--sesion archivo.json` para retomar.
@@ -99,6 +99,8 @@ Cada ítem respeta los ADRs.
     `enot/flujo.py`; `docs/presentacion.md` con el esqueleto de la exposición (problema, arquitectura,
     áreas de profundización, resultados, costos, limitaciones, relato del desarrollo).
   - Aceptación: `docker build` y `make check` pasan; el README se puede seguir en una máquina limpia.
+  - CLI (revisión 005 ronda 2, menor): que un error de los embeddings al armar el índice (sin `OPENAI_API_KEY` ni caché
+    en `data/indice/`) salga como mensaje y código 1, como ya pasa con `ClienteLLM`.
 
 ---
 

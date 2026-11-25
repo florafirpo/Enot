@@ -14,6 +14,13 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (24/11, ítem 005) ADR-0015 en "Propuesto": con un itinerario vigente, **todo mensaje se trata como ajuste** (se
+  replanifica sobre el vigente con el pedido y se verifica igual; el vigente solo cambia por otro factible), y el
+  **tope de tokens es 200 000 por conversación**, contado desde la traza. Recomendación: aceptarlo y revisar el tope con
+  las trazas de tus pruebas del 26–27/11. Alternativas: un clasificador de intención antes del planificador (evita que
+  un "gracias" cueste un turno entero) o un tope en USD cuando exista la tabla de precios (ítem 008).
+  Para probar `python -m enot` (26–27/11): los embeddings van por la API compatible con OpenAI (`OPENAI_API_KEY`,
+  `EMBEDDINGS_MODEL`); sin clave ni caché en `data/indice/` hoy sale un traceback (anotado en el ítem 009).
 - (24/11, ítem 004) ADR-0014 en "Propuesto": el relevamiento repregunta con **textos fijos escritos en código**
   (no los redacta el LLM) y el planificador recibe los **tiempos de traslado precalculados** en el contexto, en vez
   de tools. Recomendación: aceptarlo para el tracer bullet (005) y revisar después de tus pruebas del 26–27/11.
