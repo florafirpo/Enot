@@ -209,8 +209,14 @@ class SistemaEnot:
             tipo, itinerario = "itinerario", r.itinerario
         return SalidaSistema(consulta_id=consulta.id, sistema=self.nombre, tipo=tipo, itinerario=itinerario,
                              texto=r.texto, intentos=r.intentos, latencia_s=latencia,
-                             tokens_in=sum(e.tokens_in or 0 for e in eventos),
-                             tokens_out=sum(e.tokens_out or 0 for e in eventos))
+                             tokens_in=_suma_conocida(e.tokens_in for e in eventos),
+                             tokens_out=_suma_conocida(e.tokens_out for e in eventos))
+
+
+def _suma_conocida(valores) -> Optional[int]:
+    """Suma de tokens, o None si alguna llamada no los informó (falló): nunca un 0 inventado (ADR-0014)."""
+    valores = list(valores)
+    return None if any(v is None for v in valores) else sum(valores)
 
 
 def crear_enot(cliente, corpus: dict[str, Bodega], indice: Indice, carpeta_trazas: Path) -> SistemaEnot:
