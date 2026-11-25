@@ -194,10 +194,6 @@ def _num(v: Optional[float], decimales: int = 2) -> str:
     return "s/d" if v is None else f"{v:.{decimales}f}"
 
 
-def _ent(v: Optional[int]) -> str:
-    return "s/d" if v is None else str(v)
-
-
 def render_markdown(reporte: Reporte, filas: Sequence[FilaSistema], origen: str,
                     calibracion: Optional[Calibracion] = None, precios_cargados: bool = False) -> str:
     cfg = reporte.configuracion
@@ -241,7 +237,7 @@ def render_markdown(reporte: Reporte, filas: Sequence[FilaSistema], origen: str,
     ]
     for f in filas:
         llamadas = ("s/t" if f.llamadas is None
-                    else f"{f.llamadas} ({_ent(f.llamadas_fallidas)}, {f.llamadas_sin_tokens})")
+                    else f"{f.llamadas} ({f.llamadas_fallidas}, {f.llamadas_sin_tokens})")
         lineas.append(f"| {f.sistema} | {f.consultas_con_costo}/{f.consultas} | {_num(f.tokens_medios, 0)} | "
                       f"{_num(f.usd_medio, 4)} | {_num(f.usd_p95, 4)} | {_num(f.latencia_media)} | "
                       f"{_num(f.latencia_p95)} | {_num(f.intentos_medios)} | {llamadas} | {f.salidas_error} |")
