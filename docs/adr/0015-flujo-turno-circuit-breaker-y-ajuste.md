@@ -32,8 +32,11 @@ funciones sin estado. Al encadenarlos (ítem 005, tracer bullet) hubo que decidi
 3. **Ajuste = replanificar sobre el vigente, con el mismo verificador.** Con un itinerario vigente, el mensaje del
    turista se trata como pedido de ajuste: se vuelve a relevar (el perfil puede cambiar), las bodegas del vigente
    que siguen pasando los filtros duros se suman primero a las candidatas, y el planificador recibe el vigente como
-   "itinerario anterior" y el pedido entre `<pedido>…</pedido>` (texto del turista como dato, C.9). El vigente solo
-   se reemplaza por una propuesta factible; si el ajuste no se logra, el anterior sigue vigente y se le dice.
+   "itinerario anterior" y el pedido entre `<pedido>…</pedido>` (texto del turista como dato, C.9). En los
+   reintentos, el itinerario anterior es la propuesta fallida, que ya trae el pedido aplicado: el vigente va aparte
+   como referencia y el pedido se marca "ya aplicado: no lo apliques de nuevo; corregí los problemas", para que un
+   "sacá la segunda bodega" no saque otra en el 2.º intento (revisión 005 ronda 1). El vigente solo se reemplaza
+   por una propuesta factible; si el ajuste no se logra, el anterior sigue vigente y se le dice.
 4. **Textos de borde escritos por código.** Infactible (qué condición no se cumplió, con `DESCRIPCION_VIOLACION`
    por tipo, más el detalle del último intento), zona desconocida (con las zonas que sí hay), sin candidatas (los
    motivos de exclusión más frecuentes dentro de la zona pedida) y tope alcanzado.
@@ -74,10 +77,11 @@ funciones sin estado. Al encadenarlos (ítem 005, tracer bullet) hubo que decidi
   `test_max_intentos_1_es_la_ablacion_b2` (decisión 2, intentos); `test_tope_de_tokens_corta_el_loop`,
   `test_tope_alcanzado_por_el_relevamiento_no_planifica`, `test_sesion_ida_y_vuelta_y_tokens_continuan`,
   `test_tokens_usados_ignora_desconocidos` (decisión 2, tokens); `test_ajuste_edita_el_itinerario_vigente`,
-  `test_ajuste_suma_las_bodegas_vigentes_a_las_candidatas`, `test_ajuste_infactible_conserva_el_vigente` (decisión 3);
+  `test_ajuste_suma_las_bodegas_vigentes_a_las_candidatas`, `test_ajuste_reintento_no_reaplica_el_pedido`,
+  `test_contexto_planificador_reintento_de_ajuste`, `test_ajuste_infactible_conserva_el_vigente` (decisión 3);
   `test_explicar_infactible_texto`, `test_descripcion_violacion_cubre_todos_los_tipos`,
   `test_zona_desconocida_avisa_sin_buscar`, `test_sin_candidatas_explica_por_que` (decisión 4);
   `test_tope_antes_de_responder_entrega_el_detalle_sin_llm`, `test_error_en_respuesta_degrada_al_detalle`,
   `test_error_de_nodo_no_ensucia_la_sesion` (decisión 5); `test_con_la_muestra_real_de_datatourisme` (formato real).
 - `tests/test_cli.py` (decisión 6).
-- Mutation sobre `enot/flujo.py` (no obligatorio): 344/361 (95%); los sobrevivientes son equivalentes (ver el reporte).
+- Mutation sobre `enot/flujo.py` (no obligatorio): 361/378 (95%); los sobrevivientes son equivalentes (ver el reporte).

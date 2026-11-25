@@ -15,6 +15,10 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
 - ADR-0015 (propuesto). Spec 005.
 - 32 tests nuevos (302 → 334), ningún test existente modificado; uno corre la muestra real de DATAtourisme por un
   turno completo. Mutation (no obligatorio): `enot/flujo.py` 344/361 (95%; sobrevivientes equivalentes).
+- Ronda 2 (revisión 005 ronda 1, CAMBIOS): en el reintento de un ajuste, el pedido se marca "ya aplicado" y el vigente
+  va aparte como referencia (`vigente_ajuste` en `planificar`), para no aplicarlo dos veces; "las zonas" en plural;
+  la CLI convierte en mensaje un error al crear el cliente LLM y un Ctrl-C a mitad de turno no guarda el turno a
+  medias; el test de valores por defecto pasa por `argparse`. 338 tests. Mutation: 361/378.
 
 ## 2026-11-24 · noche/2026-11-24-004 · nodos con LLM (relevamiento, planificador, respuesta) y trazas
 - `enot/nodos.py`: `relevar(historial) -> PerfilViaje | Pregunta` (el LLM extrae un `BorradorPerfil`; qué falta, qué
