@@ -2,6 +2,29 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-25 · noche/2026-11-25-007 · baselines, métricas y `make eval`
+- `eval/metricas.py` (funciones puras):
+  - hard pass todo o nada contra la etiqueta: itinerario entregado, estructura completa (días, día de la semana y al
+    menos una visita por día), cero violaciones del verificador y cero afirmaciones inventadas;
+  - tasa de alucinación sobre bodegas, experiencias y precios afirmados;
+  - cobertura del corpus + Gini;
+  - infactibles bien detectados (total, por motivo y sobre los representables), que no dependen de la decisión
+    pendiente de Flora;
+  - desglose por escenario y conteo de tipos de salida.
+- `eval/baselines.py`:
+  - B0 zero-shot sin corpus: nombres resueltos contra el corpus y `b0:<nombre>` si no existen;
+  - B1 formulario + filtros + greedy por cercanía, con el verificador como oráculo;
+  - B2 un intento, entrega la primera propuesta aunque no pase el verificador;
+  - Enot completo, con una sesión y una traza por consulta.
+- `eval/correr.py` y `make eval SPLIT=dev|test SISTEMAS=…` escriben `reports/eval_<split>_<fecha-hora>.json` con la
+  configuración, las métricas, la evaluación por consulta y las salidas (tokens y latencia para el 008). Sin
+  `data/eval/` sale con un mensaje; `SISTEMAS=B1` corre sin claves.
+- `eval/generador.py`: el docstring de `escribir_set` declara que el movimiento final no es atómico entre los cuatro
+  elementos (menor de la revisión 006 ronda 2). README: sección "Correr la evaluación".
+- ADR-0017 (propuesto). Spec 007.
+- 82 tests nuevos (384 → 466), ningún test existente modificado. Mutation: `eval/metricas.py` 326/328 (99%),
+  `eval/baselines.py` 395/419 (94%, no obligatorio).
+
 ## 2026-11-25 · noche/2026-11-25-006 · generador del set de evaluación
 - `eval/generador.py`: 100 consultas desde plantillas, con la etiqueta como `PerfilViaje` (más `bodegas_por_dia`,
   `zonas_mismo_dia`, `infactible` y `motivo_infactible`). Cuotas por escenario 15/15/15/15/10/10/20 (días,

@@ -14,6 +14,28 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (25/11, ítem 007) **Qué es B2.** Con `max_intentos=1` tal cual, el flujo igual rechaza la propuesta inválida y
+  responde "infactible": B2 tendría casi el mismo hard pass que Enot y sumaría infactibles "detectados" falsos. Así
+  no aísla el aporte del verificador.
+  - Lo que se hizo: B2 = un intento y **entrega la primera propuesta aunque el verificador la rechace** (sin loop no
+    hay guardia). Está en ADR-0017.
+  - Recomendación: aceptarlo.
+  - Alternativa: reportar dos ablaciones, B2a (un intento, con guardia) y B2b (sin guardia). Es un parámetro
+    (`entregar_sin_verificar`) y no hace falta código nuevo.
+- (25/11, ítem 007) **Infactibles en las métricas.** No esperé tu respuesta sobre (a)/(b)/(c). El reporte trae la
+  tasa total, la tasa por motivo y la tasa sobre los representables.
+  - Cuenta como detectado `infactible`, `sin_candidatas` o `zona_desconocida` con una zona fuera de Borgoña (la
+    opción (b) de "mientras tanto").
+  - Si elegís (a), no hay que tocar las métricas. Si elegís (c), se lee la tasa de representables. El criterio con
+    juez de (b) no está implementado.
+- (25/11, ítem 007) ADR-0017 en "Propuesto". Decide cuatro cosas:
+  - hard pass = estructura + verificador contra la etiqueta + cero inventados;
+  - alucinación sobre bodegas, experiencias y precios;
+  - B1 con el perfil etiquetado (tiene ventaja sobre Enot) y el verificador como oráculo;
+  - reporte con fecha y hora que nunca pisa.
+
+  Ojo: con fichas sin horarios ni precios, el hard pass es alto para todos. B1 sobre la muestra real da 98,75%.
+  Conviene reportarlo junto con la completitud del corpus.
 - (25/11, ítem 006) **Generar y congelar el set de evaluación.** El generador está listo, pero `data/eval/` no se
   escribió: crear la partición de test es irreversible (hook, ADR-0007). Antes hay que decidir si se parafrasea con
   el LLM, porque después de congelar test ya no se puede.
