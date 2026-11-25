@@ -59,13 +59,17 @@ CALIBRACION ?=
 PRECIOS ?=
 
 juez:
+	$(if $(EVAL),,$(error Falta EVAL=reports/eval_<split>_<fecha>.json))
 	$(PY) -m eval.juez $(EVAL)
 
 planilla:
+	$(if $(EVAL),,$(error Falta EVAL=reports/eval_dev_<fecha>.json))
 	$(PY) -m eval.calibrar planilla $(EVAL)
 
 calibrar:
+	$(if $(JUICIOS),,$(error Falta JUICIOS=reports/juez_dev_<fecha>.json))
 	$(PY) -m eval.calibrar calibrar $(JUICIOS)
 
 reporte:
+	$(if $(EVAL),,$(error Falta EVAL=reports/eval_<split>_<fecha>.json))
 	$(PY) -m eval.reporte $(EVAL) $(if $(JUICIOS),--juicios $(JUICIOS)) $(if $(CALIBRACION),--calibracion $(CALIBRACION)) $(if $(PRECIOS),--precios $(PRECIOS))
