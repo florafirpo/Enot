@@ -20,6 +20,8 @@ from typing import Literal, Optional, Sequence, Type
 
 from pydantic import BaseModel, Field, ValidationError, create_model
 
+from corpus.llm import ErrorSalidaInvalida
+
 from . import prompts
 from .modelos import Bodega, Dia, DiaItinerario, Hora, Itinerario, Parada, PerfilViaje, Transporte, a_hora, a_minutos
 from .retrieval import dias_del_viaje
@@ -55,9 +57,14 @@ def _llamar(cliente, traza: Traza, nodo: NodoLLM, usuario: str, modelo: Type[Bas
     try:
         r = cliente.estructurado(prompts.cargar(nodo), usuario, modelo)
     except Exception as e:  # noqa: BLE001 — errores del proveedor o de validación: se registran y se tipifican
-        # tokens e intentos quedan en None (desconocidos): ClienteLLM no los informa cuando lanza
-        traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0, tokens_in=None, tokens_out=None,
-                                    intentos_validacion=None, estado="error", error=str(e)[:500]))
+        # si el cliente informa lo que gastó (ErrorSalidaInvalida), se registra; si no (proveedor caído), queda en
+        # None: desconocido, nunca 0 (spec 008)
+        gasto = e if isinstance(e, ErrorSalidaInvalida) else None
+        traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0,
+                                    tokens_in=gasto.tokens_in if gasto else None,
+                                    tokens_out=gasto.tokens_out if gasto else None,
+                                    intentos_validacion=gasto.intentos if gasto else None, estado="error",
+                                    error=str(e)[:500]))
         raise ErrorNodo(nodo, e) from e
     traza.registrar(EventoTraza(**comunes, latencia_s=time.perf_counter() - t0, tokens_in=r.tokens_in,
                                 tokens_out=r.tokens_out, intentos_validacion=r.intentos, estado="ok"))

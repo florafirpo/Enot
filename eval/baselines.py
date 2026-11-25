@@ -208,7 +208,7 @@ class SistemaEnot:
             # sin loop no hay guardia: la primera propuesta llega al turista aunque el verificador la rechace
             tipo, itinerario = "itinerario", r.itinerario
         return SalidaSistema(consulta_id=consulta.id, sistema=self.nombre, tipo=tipo, itinerario=itinerario,
-                             texto=r.texto, intentos=r.intentos, latencia_s=latencia,
+                             texto=r.texto, intentos=r.intentos, latencia_s=latencia, traza=str(sesion.traza().ruta),
                              tokens_in=_suma_conocida(e.tokens_in for e in eventos),
                              tokens_out=_suma_conocida(e.tokens_out for e in eventos))
 

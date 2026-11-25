@@ -14,6 +14,31 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (25/11, ítem 008) **Precios del modelo para el reporte.** No puse precios en el repo: cambian y no los puedo
+  verificar sin red. Para que `reports/resultados.md` traiga USD, armá un `precios.json` con el modelo de tu `.env`
+  (`{"<modelo>": {"entrada_usd_por_millon": x, "salida_usd_por_millon": y}}`) y pasalo con `make reporte … PRECIOS=…`.
+  Sin precios, el reporte trae tokens y latencia y dice "s/d" en USD.
+- (25/11, ítem 008, revisión ronda 1) **Tokens cuando el proveedor no informa `usage`.** Con un endpoint compatible
+  con OpenAI (Ollama, etc.) que no devuelve `usage`, `ClienteLLM` registra 0 tokens y la llamada cuenta como gratis.
+  Hoy está declarado como limitación (ADR-0018 y notas de `resultados.md`). Opciones: (a) dejarlo así si usás la API de
+  OpenAI o Anthropic (siempre informan); (b) ítem chico: que `ClienteLLM` devuelva tokens desconocidos y que
+  `EventoTraza` acepte una llamada ok sin tokens marcada explícitamente (`tokens_informados=False`). Recomendación:
+  (a) si no vas a medir un modelo local; (b) si comparás contra uno local (PRD 9).
+- (25/11, ítem 008) **Rúbrica del juez y anotación del 30/11.** Revisá `eval/prompts/juez.md` antes de anotar: vos
+  puntuás con la misma rúbrica y viendo el mismo texto que el juez. Pasos: `make eval SPLIT=dev` → `make planilla
+  EVAL=reports/eval_dev_….json` (30 casos en `data/eval/anotacion_humana.csv`; no abras
+  `anotacion_humana_claves.csv`, que dice qué sistema es cada caso) → completar `puntaje_humano` → `make
+  juez EVAL=…` → `make calibrar JUICIOS=…`.
+- (25/11, ítem 008) ADR-0018 en "Propuesto". Decide:
+  - juez ciego, con los datos de las bodegas tomados del corpus (no la prosa de cada sistema);
+  - se juzgan solo consultas factibles con preferencias (42 de 100) y el reporte da la media total y la media con
+    hard pass;
+  - apto con 30 pares, Spearman ≥ 0,6 y **kappa cuadrático** ≥ 0,6 (escala ordinal); la planilla sale solo de dev;
+  - costo desde la traza de cada consulta; una llamada sin tokens o un modelo sin precio deja la consulta sin costo
+    (se cuenta, nunca 0); p95 por rango más cercano.
+
+  Recomendación: aceptarlo. Alternativas: que el juez lea la respuesta completa (mide la prosa, B1 queda en
+  desventaja), o umbral con kappa sin ponderar (más exigente).
 - (25/11, ítem 007) **Qué es B2.** Con `max_intentos=1` tal cual, el flujo igual rechaza la propuesta inválida y
   responde "infactible": B2 tendría casi el mismo hard pass que Enot y sumaría infactibles "detectados" falsos. Así
   no aísla el aporte del verificador.
