@@ -70,7 +70,7 @@ Cada ítem respeta los ADRs.
     con uno que siempre falla, corta en 3 y explica la restricción que no se pudo cumplir; un ajuste
     ("sacá la segunda bodega") edita el itinerario vigente.
 
-- [ ] **006 · Generador del set de evaluación** (28/11)
+- [~] **006 · Generador del set de evaluación** (28/11) · rama `noche/2026-11-25-006` (en revisión)
   - `eval/generador.py`: 100 consultas desde plantillas (+ paráfrasis opcional con LLM), estratificadas
     por escenario (PRD 6), restricciones en JSON, semilla fija. Escribe `data/eval/dev/` (60) y
     `data/eval/test/` (40) solo si no existen (el hook protege test).

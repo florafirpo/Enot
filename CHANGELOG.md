@@ -2,6 +2,22 @@
 
 Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué cambió · ADRs.
 
+## 2026-11-25 · noche/2026-11-25-006 · generador del set de evaluación
+- `eval/generador.py`: 100 consultas desde plantillas, con la etiqueta como `PerfilViaje` (más `bodegas_por_dia`,
+  `zonas_mismo_dia`, `infactible` y `motivo_infactible`). Cuotas por escenario 15/15/15/15/10/10/20 (días,
+  transporte, presupuesto, grupo, idioma, accesibilidad, infactibles). Semilla fija (2026).
+- `certificado_infactible`: un pedido se etiqueta infactible solo si el código prueba que es imposible para cualquier
+  corpus, con las constantes de la tool de traslados. Tres motivos: demasiadas visitas para la jornada, dos zonas
+  lejanas el mismo día a pie o en bici, zona fuera de Borgoña.
+- `particionar` (60/40 estratificado), `muestra_revision` (20% estratificado), `escribir_set` (todo o nada: no
+  escribe si `dev/` o `test/` existen), `tasa_error_revision` (lee la columna `correcta` de la planilla) y
+  paráfrasis opcional con `ClienteLLM`, que se acepta solo si conserva las anclas y no repite otra consulta.
+- `python -m eval.generador [--destino] [--semilla] [--parafrasear]`; sección en el README.
+- **No se escribió `data/eval/`**: congelar la partición de test es irreversible y le corresponde a Flora (decisión
+  pendiente en `docs/feedback-flora.md`).
+- ADR-0016 (propuesto). Spec 006.
+- 42 tests nuevos (338 → 380), ningún test existente modificado. Mutation: `eval/generador.py` 1115/1178 (95%).
+
 ## 2026-11-24 · noche/2026-11-24-005 · flujo completo con loop de verificación, ajuste conversacional y CLI
 - `enot/flujo.py`: `Sesion` serializable (historial, perfil, itinerario vigente, advertencias, ruta de la traza) y
   `Flujo.turno(sesion, texto) -> Respuesta`: relevar → zonas conocidas → buscar → [planificar → verificar] × hasta
