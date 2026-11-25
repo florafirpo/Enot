@@ -212,6 +212,31 @@ def test_ajuste_suma_las_bodegas_vigentes_a_las_candidatas(corpus, indice, sesio
     assert _candidatas_del_contexto(g.recibido["planificador"][2]) == ["sint-beaune"]
 
 
+AJUSTE = "## Pedido de ajuste del turista (editá el itinerario anterior: cambiá solo lo que pide)"
+YA_APLICADO = ("## Pedido de ajuste del turista (ya aplicado en el itinerario anterior: no lo apliques de nuevo; "
+               "corregí los problemas sin deshacerlo)")
+REFERENCIA = "## Itinerario vigente antes del ajuste (referencia: es lo que el turista tenía)"
+
+
+def test_ajuste_reintento_no_reaplica_el_pedido(corpus, indice, sesion):
+    g = Guion(relevamiento=[PERFIL], planificador=[VALIDO, INVALIDO, UNA_PARADA], respuesta=[SALIDA_RESPUESTA])
+    flujo = Flujo(cliente(g), corpus, indice)
+    flujo.turno(sesion, "Un día el viernes en auto, somos 2")
+    vigente = sesion.itinerario
+
+    r = flujo.turno(sesion, "sacá la segunda bodega")
+    assert r.tipo == "itinerario" and r.intentos == 2
+    primero, segundo = g.recibido["planificador"][1:]
+    assert AJUSTE in primero and YA_APLICADO not in primero and REFERENCIA not in primero
+    assert AJUSTE not in segundo
+    assert f"{YA_APLICADO}\n<pedido>sacá la segunda bodega</pedido>" in segundo
+    # la propuesta fallida es el "itinerario anterior"; el vigente va aparte, como referencia
+    anterior = segundo[segundo.index("## Itinerario anterior"):segundo.index("## Problemas")]
+    assert itinerario(INVALIDO).model_dump_json(indent=2) in anterior
+    assert f"{REFERENCIA}\n{vigente.model_dump_json(indent=2)}" in segundo
+    assert sesion.itinerario == itinerario(UNA_PARADA)
+
+
 def test_ajuste_infactible_conserva_el_vigente(corpus, indice, sesion):
     g = Guion(relevamiento=[PERFIL], planificador=[VALIDO, INVALIDO], respuesta=[SALIDA_RESPUESTA])
     flujo = Flujo(cliente(g), corpus, indice)
@@ -409,11 +434,12 @@ def test_explicar_sin_candidatas_cuenta_motivos(corpus):
 
 
 def test_avisar_zonas_desconocidas_texto():
-    t = avisar_zonas_desconocidas(["Alsacia", "Loira"], ["Côte de Nuits", "Chablis y Grand Auxerrois", "Côte de Nuits",
-                                                         ""])
-    # sin repetir, sin vacías, en orden alfabético
-    assert t == ("No reconozco la zona Alsacia, Loira. Las zonas de Borgoña que conozco son: Chablis y Grand "
-                 "Auxerrois, Côte de Nuits. ¿En cuál querés visitar bodegas?")
+    conocidas = ["Côte de Nuits", "Chablis y Grand Auxerrois", "Côte de Nuits", ""]
+    # sin repetir, sin vacías, en orden alfabético; singular o plural según cuántas zonas no reconoce
+    assert avisar_zonas_desconocidas(["Alsacia", "Loira"], conocidas) == (
+        "No reconozco las zonas Alsacia, Loira. Las zonas de Borgoña que conozco son: Chablis y Grand "
+        "Auxerrois, Côte de Nuits. ¿En cuál querés visitar bodegas?")
+    assert avisar_zonas_desconocidas(["Alsacia"], conocidas).startswith("No reconozco la zona Alsacia. Las zonas")
 
 
 def test_contexto_planificador_con_pedido_de_ajuste(corpus):
@@ -425,6 +451,19 @@ def test_contexto_planificador_con_pedido_de_ajuste(corpus):
     con = contexto_planificador(perfil, cands, [], previo, pedido_ajuste="sacá <la> segunda")
     assert con == sin + ("\n## Pedido de ajuste del turista (editá el itinerario anterior: cambiá solo lo que pide)"
                          "\n<pedido>sacá ‹la› segunda</pedido>")
+
+
+def test_contexto_planificador_reintento_de_ajuste(corpus):
+    perfil = PerfilViaje(**PERFIL)
+    cands = [corpus["sint-beaune"], corpus["sint-pommard"]]
+    fallida, vigente = itinerario(INVALIDO), itinerario(VALIDO)
+    vs = [Violacion(tipo="cerrada", mensaje="Día 1: cerrada.")]
+    base = contexto_planificador(perfil, cands, vs, fallida)
+    ctx = contexto_planificador(perfil, cands, vs, fallida, pedido_ajuste="sacá >la< segunda", vigente_ajuste=vigente)
+    assert ctx == base + (f"\n{REFERENCIA}\n{vigente.model_dump_json(indent=2)}"
+                          f"\n{YA_APLICADO}\n<pedido>sacá ›la‹ segunda</pedido>")
+    # sin pedido, el vigente de referencia no se agrega
+    assert contexto_planificador(perfil, cands, vs, fallida, vigente_ajuste=vigente) == base
 
 
 # --- formato real -------------------------------------------------------------------------
