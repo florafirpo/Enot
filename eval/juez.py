@@ -76,8 +76,16 @@ def juzgable(consulta: Consulta, salida: SalidaSistema) -> bool:
             and any(d.paradas for d in salida.itinerario.dias))
 
 
+def _experiencia_de_la_ficha(b: Bodega, nombre: Optional[str]):
+    """La experiencia de la ficha con ese nombre (sin distinguir mayúsculas, como `eval.metricas`), o None."""
+    if not nombre:
+        return None
+    return next((e for e in b.experiencias if e.nombre.casefold() == nombre.casefold()), None)
+
+
 def texto_itinerario(itinerario: Itinerario, corpus: dict[str, Bodega]) -> str:
-    """Las bodegas de cada día con los datos de su ficha. Sin horarios, precios ni duraciones."""
+    """Las bodegas de cada día con los datos de su ficha. Sin horarios, precios ni duraciones. La experiencia solo
+    aparece si está en la ficha (con el nombre de la ficha); una inventada por el sistema no se muestra."""
     lineas: list[str] = []
     for d in itinerario.dias:
         lineas.append(f"Día {d.numero} ({DIA_LARGO[d.dia_semana]}):")
@@ -88,7 +96,8 @@ def texto_itinerario(itinerario: Itinerario, corpus: dict[str, Bodega]) -> str:
                 lineas.append(f"- {nombre}: fuera del corpus, sin datos.")
                 continue
             datos = [f"zona {b.zona}" if b.zona else "", f"comuna {b.comuna}" if b.comuna else "",
-                     f"experiencia: {p.experiencia}" if p.experiencia else "",
+                     # solo una experiencia que está en la ficha: lo que escribió el sistema no es dato (rev. 008)
+                     f"experiencia: {e.nombre}" if (e := _experiencia_de_la_ficha(b, p.experiencia)) else "",
                      f"vinos: {', '.join(b.vinos_o_varietales_destacados)}" if b.vinos_o_varietales_destacados else "",
                      f"descripción: {(b.descripcion_breve or '')[:LARGO_DESCRIPCION]}" if b.descripcion_breve else ""]
             lineas.append(f"- {b.nombre}: " + "; ".join(x for x in datos if x) + ".")
