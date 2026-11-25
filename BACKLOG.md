@@ -89,7 +89,7 @@ Cada ítem respeta los ADRs.
   - Menor (revisión 006 ronda 2): en `escribir_set`, el movimiento final de los cuatro elementos no es atómico entre
     sí. Hay que documentarlo en el docstring o revertir si falla un `replace`.
 
-- [~] **008 · Juez LLM calibrado y reporte de costos/latencia** (30/11) · rama `noche/2026-11-25-008` (en revisión del companero)
+- [x] **008 · Juez LLM calibrado y reporte de costos/latencia** (30/11) · rama `noche/2026-11-25-008` (aprobado por companero en ronda 2)
   - `eval/juez.py`: rúbrica 1–5 de ajuste a preferencias; `eval/calibrar.py`: Spearman y kappa contra
     `data/eval/anotacion_humana.csv` (lo completa Flora).
   - `eval/reporte.py`: tabla final (métricas por sistema, costo y latencia media y p95 desde las trazas)
