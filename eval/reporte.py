@@ -36,7 +36,8 @@ from eval.juez import Juicios
 from eval.metricas import SalidaSistema
 
 __all__ = ["CONSULTAS_POR_MES", "CostoConsulta", "FilaSistema", "Precio", "cargar_precios", "costo_consulta",
-           "filas_sistemas", "main", "media", "percentil_95", "render_markdown"]
+           "filas_sistemas", "main", "media", "percentil_95", "render_markdown",
+           "verificar_juicios"]
 
 CONSULTAS_POR_MES = 1000    # volumen hipotético para la proyección mensual (PRD 9)
 
@@ -156,7 +157,9 @@ def filas_sistemas(reporte: Reporte, juicios: Optional[Juicios] = None, precios:
     for sistema, salidas in reporte.salidas.items():
         m = reporte.metricas[sistema]
         hard_pass = {e.consulta_id: e.hard_pass for e in reporte.evaluaciones.get(sistema, [])}
-        propios = [j for j in (juicios.juicios if juicios else []) if j.sistema == sistema]
+        # solo juicios de salidas de este reporte (revisión 008 ronda 1): un juicio de otra consulta no se mezcla
+        ids = {s.consulta_id for s in salidas if s.tipo == "itinerario"}
+        propios = [j for j in (juicios.juicios if juicios else []) if j.sistema == sistema and j.consulta_id in ids]
         ok = [j for j in propios if j.estado == "ok"]
         con_llm = sistema in CON_LLM
         costos = [costo_consulta(s, leer_eventos(s.traza) if s.traza else None, con_llm, modelo, precios)
@@ -253,9 +256,20 @@ def render_markdown(reporte: Reporte, filas: Sequence[FilaSistema], origen: str,
         "",
         "Notas: costo desde la traza de cada consulta (B0 sin traza: tokens de la salida; B1 no usa LLM). Una llamada "
         "sin tokens informados deja la consulta fuera del costo medio (nunca se suma como 0). La latencia no cuenta "
-        "las salidas `error`. p95 por rango más cercano. s/d = sin dato; s/t = sin traza.",
+        "las salidas `error`. p95 por rango más cercano. s/d = sin dato; s/t = sin traza. Limitación: si un endpoint "
+        "compatible con OpenAI no informa `usage`, `ClienteLLM` registra 0 tokens y esa llamada cuenta como gratis "
+        "(ADR-0018).",
     ]
     return "\n".join(lineas) + "\n"
+
+
+def verificar_juicios(juicios: Juicios, reporte: Reporte, ruta_reporte: Path) -> None:
+    """ValueError si los juicios son de otro reporte o de otro split: el preference score saldría de otra corrida."""
+    if juicios.split != reporte.split:
+        raise ValueError(f"los juicios son del split {juicios.split!r} y el reporte de {reporte.split!r}")
+    if Path(juicios.reporte).name != Path(ruta_reporte).name:
+        raise ValueError(f"los juicios son de {juicios.reporte}, no de {ruta_reporte}: corré `make juez EVAL=…` "
+                         "sobre este reporte")
 
 
 # --- CLI -----------------------------------------------------------------------------------------------------------
@@ -274,6 +288,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         calibracion = (Calibracion.model_validate_json(args.calibracion.read_text(encoding="utf-8"))
                        if args.calibracion else None)
         precios = cargar_precios(args.precios) if args.precios else {}
+        if juicios is not None:
+            verificar_juicios(juicios, reporte, args.reporte)
     except (OSError, ValueError) as e:
         print(f"[reporte] {e}", file=sys.stderr)
         return 1
