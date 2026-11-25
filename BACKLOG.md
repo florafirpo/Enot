@@ -70,7 +70,7 @@ Cada ítem respeta los ADRs.
     con uno que siempre falla, corta en 3 y explica la restricción que no se pudo cumplir; un ajuste
     ("sacá la segunda bodega") edita el itinerario vigente.
 
-- [ ] **006 · Generador del set de evaluación** (28/11)
+- [x] **006 · Generador del set de evaluación** (28/11) · rama `noche/2026-11-25-006` (aprobado por companero en ronda 2; el set `data/eval/` no se escribió: decisión pendiente de Flora)
   - `eval/generador.py`: 100 consultas desde plantillas (+ paráfrasis opcional con LLM), estratificadas
     por escenario (PRD 6), restricciones en JSON, semilla fija. Escribe `data/eval/dev/` (60) y
     `data/eval/test/` (40) solo si no existen (el hook protege test).
@@ -83,6 +83,11 @@ Cada ítem respeta los ADRs.
   - `eval/metricas.py`: hard pass rate, tasa de alucinación, cobertura del corpus + Gini, infactibles bien
     detectados. `eval/correr.py` y `make eval SPLIT=dev|test` → `reports/eval_<split>_<fecha>.json`.
   - Aceptación: métricas con casos armados a mano; mutation sobre `eval/metricas.py` ≥ 80%.
+  - Infactibles (revisión 006 ronda 1): cómo se cuenta "bien detectado" depende de la decisión de Flora en
+    `docs/feedback-flora.md`. Hay dos casos: 14 infactibles usan restricciones que `PerfilViaje` no tiene, y
+    `zona_fuera` sale como `zona_desconocida`.
+  - Menor (revisión 006 ronda 2): en `escribir_set`, el movimiento final de los cuatro elementos no es atómico entre
+    sí. Hay que documentarlo en el docstring o revertir si falla un `replace`.
 
 - [ ] **008 · Juez LLM calibrado y reporte de costos/latencia** (30/11)
   - `eval/juez.py`: rúbrica 1–5 de ajuste a preferencias; `eval/calibrar.py`: Spearman y kappa contra

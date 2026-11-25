@@ -34,6 +34,14 @@ make check     # lint + tests (tiene que pasar siempre)
 make mutation MODULO=enot/verificador.py   # ¿los tests detectarían un error?
 ```
 
+## Set de evaluación
+
+`python -m eval.generador [--parafrasear]` escribe en `data/eval/` las particiones `dev/` (60 consultas) y `test/`
+(40), la planilla `revision_manual.csv` (20% para revisar a mano) y `generacion.json` (ADR-0007, ADR-0016). Se corre
+**una sola vez**: si `dev/` o `test/` ya existen, no escribe nada, y la partición de test no se toca más.
+`--parafrasear` reescribe cada consulta con el LLM de `.env` y conserva las etiquetas. La tasa de error del generador
+sale de la columna `correcta` de la planilla (`eval.generador.tasa_error_revision`).
+
 ---
 
 # Pipeline del corpus

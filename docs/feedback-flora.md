@@ -14,6 +14,45 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   sensor `make registro`).
 
 ## Decisiones pendientes (las escriben los agentes cuando algo le corresponde a Flora)
+- (25/11, ítem 006) **Generar y congelar el set de evaluación.** El generador está listo, pero `data/eval/` no se
+  escribió: crear la partición de test es irreversible (hook, ADR-0007). Antes hay que decidir si se parafrasea con
+  el LLM, porque después de congelar test ya no se puede.
+  - Recomendación: mirá las plantillas (`PLANTILLAS` en `eval/generador.py`, o corré `python -m eval.generador
+    --destino /tmp/prueba` y leé los JSONL). Si te parecen bien, corré **sin paráfrasis** `python -m eval.generador`
+    y commiteá `data/eval/` en `desarrollo`, o respondé acá "generar set" y lo hace la próxima corrida.
+  - Por qué sin paráfrasis: es reproducible bit a bit y la revisión del 28/11 mide la tasa de error sobre textos
+    fijos.
+  - Alternativa: `python -m eval.generador --parafrasear` con tu clave. Da textos más variados; las etiquetas no
+    cambian, y la paráfrasis que pierde un dato se descarta.
+  - El ítem 007 se puede hacer antes con fixtures.
+- (25/11, ítem 006, revisión ronda 1) **Cómo se cuentan los infactibles que el sistema no puede representar.**
+  Conviene decidirlo antes de congelar test. Hay 14 de 20:
+  - 7 piden "N bodegas en un día" que no entran en la jornada;
+  - 7 piden "dos zonas lejanas el mismo día" a pie o en bici.
+
+  Esas restricciones están en la etiqueta (`bodegas_por_dia`, `zonas_mismo_dia`), pero no en `PerfilViaje`: el
+  verificador no las conoce y Enot puede responder un itinerario "válido" que las ignora. Los 6 de zona fuera de
+  Borgoña salen como `zona_desconocida`, no como `infactible`. Opciones:
+  - (a) Ítem nuevo antes del 007: sumar `bodegas_por_dia` y `zonas_mismo_dia` a `PerfilViaje`, al relevamiento y al
+    verificador. Es la opción completa: el agente los detectaría con código.
+  - (b) En el 007, contar como bien detectado si la respuesta es `infactible` o `zona_desconocida`, o si cumple un
+    criterio para "explica por qué no entra y propone una alternativa" (PRD). Ese criterio lo tiene que aplicar el
+    código o el juez.
+  - (c) Reportarlo como limitación y medir "infactibles bien detectados" solo sobre lo que el sistema representa.
+
+  Recomendación: (a), que es chico (dos campos, dos reglas del verificador y una línea del prompt de relevamiento) y
+  hace honesta la métrica. Mientras tanto, (b) para `zona_desconocida`.
+- (25/11, ítem 006) ADR-0016 en "Propuesto". Resume las decisiones del generador:
+  - cuotas 15/15/15/15/10/10/20, con 20 infactibles para tener 8 en test;
+  - infactible solo si el código lo demuestra, con tres motivos: demasiadas visitas para la jornada, dos zonas
+    lejanas el mismo día a pie o en bici, y zona fuera de Borgoña;
+  - el ejemplo del PRD "8 bodegas entre Chablis y el Mâconnais" se reformuló, porque con auto y 9 h no es
+    demostrablemente imposible;
+  - etiqueta de zona con el nombre canónico de la subzona;
+  - visita mínima de 30 min.
+
+  Recomendación: aceptarlo. Si querés pedidos infactibles por presupuesto o idioma, dependen del corpus real y
+  conviene sumarlos en el 007 una vez que esté la extracción.
 - (24/11, ítem 005) ADR-0015 en "Propuesto": con un itinerario vigente, **todo mensaje se trata como ajuste** (se
   replanifica sobre el vigente con el pedido y se verifica igual; el vigente solo cambia por otro factible), y el
   **tope de tokens es 200 000 por conversación**, contado desde la traza. Recomendación: aceptarlo y revisar el tope con
