@@ -178,6 +178,8 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
 - `test_resumir_por_escenario_y_tipos` — hard pass por escenario y conteo de tipos de salida.
 - `test_resumir_consulta_sin_salida_es_error` — falta la salida de una consulta → `error`, cuenta como falla.
 - `test_resumir_rechaza_salidas_duplicadas_o_ajenas` — ValueError.
+- `test_afirmaciones_solo_cuentan_lo_entregado` y `test_recomendaciones_siguen_despues_de_una_salida_sin_itinerario`
+  (sobrevivientes de mutation).
 
 ### `tests/test_baselines.py`
 - `test_resolver_bodega` — acentos, mayúsculas, puntuación y corchetes; nombre desconocido → None.
@@ -202,6 +204,9 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
   (hard pass False) y Enot la válida (hard pass True).
 - `test_sistema_enot_sin_entregar_sin_verificar_no_cambia_el_tipo`.
 - `test_cada_consulta_tiene_su_propia_sesion` — una sesión y una traza por consulta; los tokens no se acumulan.
+- `test_latencia_medida` — B0, B1 (en sus tres salidas) y Enot miden una latencia entre 0 y 60 s.
+- `test_tokens_desconocidos_si_una_llamada_fallo` — si un evento de la traza tiene tokens `None` (llamada fallida),
+  los tokens de la salida quedan en `None`: no se inventa un 0 (mismo criterio que ADR-0014).
 
 ### `tests/test_correr_eval.py`
 - `test_cargar_consultas_sin_set` — `SetInexistente` con un mensaje que nombra el generador.
