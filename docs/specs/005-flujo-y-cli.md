@@ -144,9 +144,11 @@ Tests en `tests/test_flujo.py` (corpus SINTÉTICO, `ClienteFalso` con un guion p
   (se saltea si no está).
 
 Tests en `tests/test_cli.py` (sin red: el flujo se inyecta):
-- `test_cli_conversa_y_guarda_la_sesion`, `test_cli_retoma_la_sesion` (el relevamiento ve el historial anterior),
-  `test_cli_pasa_las_opciones_al_flujo` (`--max-intentos`, `--tope-tokens`, `--k`),
-  `test_cli_sin_corpus_sale_con_error` (sin fichas: mensaje y código 1, sin construir el cliente LLM).
+- `test_cli_conversa_y_guarda_la_sesion` (una línea vacía no es un turno; "salir" corta; la traza va a
+  `data/trazas/`), `test_cli_termina_con_eof_sin_sesion`, `test_cli_retoma_la_sesion` (el relevamiento ve el
+  historial anterior y la traza sigue en el mismo archivo), `test_cli_pasa_las_opciones_al_flujo` (`--fichas`,
+  `--max-intentos`, `--tope-tokens`, `--k` y sus valores por defecto), `test_cli_sin_corpus_sale_con_error` (sin
+  fichas: mensaje y código 1, sin construir el cliente LLM), `test_cli_rechaza_valores_no_positivos`.
 
 Sensores: `make check`; mutation sobre `enot/flujo.py` (no obligatorio; resultado en el reporte). Flora: probar
 `python -m enot` con su clave (26–27/11) y leer los textos fijos de `enot/flujo.py`.
