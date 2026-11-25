@@ -57,6 +57,18 @@ inmutable y el 20% revisado a mano. Faltaba el cómo (ítem 006), y hay cuatro f
   alucinación.
 - Si Flora decide parafrasear, el set deja de ser reproducible bit a bit (`generacion.json` registra cuántas
   paráfrasis se aceptaron). Las etiquetas siguen siendo las mismas.
+- **Limitación (revisión 006 ronda 1).** Hoy el sistema no puede detectar 14 de los 20 infactibles, y la
+  consulta guarda esas restricciones sin que el sistema las lea:
+  - `bodegas_por_dia` y `zonas_mismo_dia` son campos de `Consulta`, no de `PerfilViaje`. Ni el relevamiento ni el
+    verificador los conocen. Con "7 bodegas en 3 horas", Enot puede armar 3 visitas, el verificador las da por
+    válidas y el flujo responde con un itinerario.
+  - `zona_fuera_de_borgona` sale como `zona_desconocida` (ADR-0015), no como "infactible".
+
+  El certificado demuestra que el pedido es imposible, pero no que el sistema lo pueda detectar. Antes de congelar
+  test, Flora decide si el perfil y el verificador se extienden o con qué criterio cuenta el 007 una "detección"
+  (`docs/feedback-flora.md`).
+- Las anclas y las marcas `[singular|plural]` de las plantillas son parte de la versión: con una persona, el texto
+  va en singular (revisión ronda 1, versión 006.2).
 - Revisar después de la revisión manual del 28/11: si la tasa de error de alguna plantilla es alta, se corrige, se
   sube `VERSION_GENERADOR` y, si test ya existe, se documenta como limitación (test no se regenera).
 

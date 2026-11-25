@@ -25,6 +25,23 @@ Los agentes marcan `[x]` lo que resolvieron, con la rama, y no borran lo que esc
   - Alternativa: `python -m eval.generador --parafrasear` con tu clave. Da textos más variados; las etiquetas no
     cambian, y la paráfrasis que pierde un dato se descarta.
   - El ítem 007 se puede hacer antes con fixtures.
+- (25/11, ítem 006, revisión ronda 1) **Cómo se cuentan los infactibles que el sistema no puede representar.**
+  Conviene decidirlo antes de congelar test. Hay 14 de 20:
+  - 7 piden "N bodegas en un día" que no entran en la jornada;
+  - 7 piden "dos zonas lejanas el mismo día" a pie o en bici.
+
+  Esas restricciones están en la etiqueta (`bodegas_por_dia`, `zonas_mismo_dia`), pero no en `PerfilViaje`: el
+  verificador no las conoce y Enot puede responder un itinerario "válido" que las ignora. Los 6 de zona fuera de
+  Borgoña salen como `zona_desconocida`, no como `infactible`. Opciones:
+  - (a) Ítem nuevo antes del 007: sumar `bodegas_por_dia` y `zonas_mismo_dia` a `PerfilViaje`, al relevamiento y al
+    verificador. Es la opción completa: el agente los detectaría con código.
+  - (b) En el 007, contar como bien detectado si la respuesta es `infactible` o `zona_desconocida`, o si cumple un
+    criterio para "explica por qué no entra y propone una alternativa" (PRD). Ese criterio lo tiene que aplicar el
+    código o el juez.
+  - (c) Reportarlo como limitación y medir "infactibles bien detectados" solo sobre lo que el sistema representa.
+
+  Recomendación: (a), que es chico (dos campos, dos reglas del verificador y una línea del prompt de relevamiento) y
+  hace honesta la métrica. Mientras tanto, (b) para `zona_desconocida`.
 - (25/11, ítem 006) ADR-0016 en "Propuesto". Resume las decisiones del generador:
   - cuotas 15/15/15/15/10/10/20, con 20 infactibles para tener 8 en test;
   - infactible solo si el código lo demuestra, con tres motivos: demasiadas visitas para la jornada, dos zonas

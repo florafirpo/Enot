@@ -17,6 +17,12 @@ Una entrada por PR, la más reciente arriba. Formato: fecha · rama/PR · qué c
   pendiente en `docs/feedback-flora.md`).
 - ADR-0016 (propuesto). Spec 006.
 - 42 tests nuevos (338 → 380), ningún test existente modificado. Mutation: `eval/generador.py` 1115/1178 (95%).
+- Ronda 2 (revisión 006 ronda 1, CAMBIOS):
+  - Con una persona, el texto va en singular (marcas `[singular|plural]`); versión 006.2 con huella nueva.
+  - La escritura del set es atómica (carpeta temporal y se mueve al final).
+  - ADR-0016 y el reporte declaran que 14 infactibles dependen de restricciones que `PerfilViaje` no tiene y que
+    `zona_fuera` sale como `zona_desconocida`; la decisión quedó en `docs/feedback-flora.md`.
+  - 384 tests. Mutation: 1153/1221 (94%).
 
 ## 2026-11-24 · noche/2026-11-24-005 · flujo completo con loop de verificación, ajuste conversacional y CLI
 - `enot/flujo.py`: `Sesion` serializable (historial, perfil, itinerario vigente, advertencias, ruta de la traza) y
