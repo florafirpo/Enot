@@ -170,3 +170,18 @@ métrica principal): objetivo ≥ 80%.
 
 Qué tendría que revisar Flora a mano: el texto de las plantillas (es lo que va a leer la cátedra en el set), las
 cuotas, y la decisión de generar y congelar test (`docs/feedback-flora.md`).
+
+## Revisión ronda 1 (docs/revisiones/006-ronda-1.md)
+- **Infactibles que el sistema no representa (importante).** `bodegas_por_dia` y `zonas_mismo_dia` no viajan en
+  `PerfilViaje`; `zona_fuera_de_borgona` sale como `zona_desconocida` (ADR-0015). No se toca `enot/` en este ítem:
+  ADR-0016 lo declara en "Consecuencias", el reporte corrige la frase sobre el verificador y la decisión (extender
+  perfil y verificador, criterio de "bien detectado" en el 007, o limitación) va a `docs/feedback-flora.md` antes de
+  congelar test.
+- **Singular y plural.** Las plantillas, las frases de zona, idioma y preferencia marcan las partes que dependen del
+  número como `[singular|plural]`; con `personas == 1` se usa el singular. `VERSION_GENERADOR` pasa a `006.2` (huella
+  nueva). Test nuevo: `test_una_persona_habla_en_singular` (con una persona no aparecen formas de primera del plural
+  como "tenemos", "queremos", "nos movemos", "buscamos"; con más de una, sí; en ninguna consulta quedan corchetes).
+- **Escritura atómica.** `escribir_set` arma todo en una carpeta temporal hermana (`.generando-<pid>`) y recién al
+  final mueve `dev/`, `test/`, la planilla y `generacion.json` a su lugar; si algo falla, borra la temporal y no deja
+  nada. Test nuevo: `test_escribir_set_falla_a_mitad_no_deja_nada` (falla forzada al escribir `generacion.json` → no
+  existen `dev/`, `test/` ni la temporal, y se puede volver a correr).
