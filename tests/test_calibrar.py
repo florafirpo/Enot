@@ -13,6 +13,7 @@ import pytest
 from enot.corpus_local import cargar_corpus
 from eval import calibrar as cal
 from eval.calibrar import (
+    COLUMNAS_CLAVES,
     COLUMNAS_PLANILLA,
     MINIMO_CASOS,
     Anotacion,
@@ -22,6 +23,7 @@ from eval.calibrar import (
     kappa,
     leer_anotaciones,
     rangos,
+    ruta_claves,
     spearman,
 )
 from eval.correr import Reporte
@@ -105,26 +107,38 @@ def test_kappa_indefinido_y_fuera_de_escala():
         kappa([1, 2], [1, 2], "lineal")
 
 
-def _escribir_csv(ruta, filas):
+def _escribir_csv(ruta, filas, columnas=COLUMNAS_PLANILLA):
     with ruta.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNAS_PLANILLA)
+        w = csv.DictWriter(f, fieldnames=columnas)
         w.writeheader()
         for fila in filas:
-            w.writerow({c: fila.get(c, "") for c in COLUMNAS_PLANILLA})
+            w.writerow({c: fila.get(c, "") for c in columnas})
 
 
 def test_leer_anotaciones(tmp_path):
     ruta = tmp_path / "a.csv"
-    _escribir_csv(ruta, [{"consulta_id": "q1", "sistema": "enot", "puntaje_humano": "4"},
-                         {"consulta_id": "q2", "sistema": "B1", "puntaje_humano": ""},
-                         {"consulta_id": "q3", "sistema": "B1", "puntaje_humano": " 2 "}])
+    _escribir_csv(ruta_claves(ruta), [{"caso": "caso_01", "consulta_id": "q1", "sistema": "enot"},
+                                      {"caso": "caso_02", "consulta_id": "q2", "sistema": "B1"},
+                                      {"caso": "caso_03", "consulta_id": "q3", "sistema": "B1"}], COLUMNAS_CLAVES)
+    _escribir_csv(ruta, [{"caso": "caso_01", "puntaje_humano": "4"}, {"caso": "caso_02", "puntaje_humano": ""},
+                         {"caso": "caso_03", "puntaje_humano": " 2 "}])
     assert leer_anotaciones(ruta) == [Anotacion(consulta_id="q1", sistema="enot", puntaje_humano=4),
                                       Anotacion(consulta_id="q2", sistema="B1", puntaje_humano=None),
                                       Anotacion(consulta_id="q3", sistema="B1", puntaje_humano=2)]
     for malo in ("7", "0", "a", "3.5"):
-        _escribir_csv(ruta, [{"consulta_id": "q1", "sistema": "enot", "puntaje_humano": malo}])
-        with pytest.raises(ValueError, match="q1"):
+        _escribir_csv(ruta, [{"caso": "caso_01", "puntaje_humano": malo}])
+        with pytest.raises(ValueError, match="caso_01"):
             leer_anotaciones(ruta)
+    _escribir_csv(ruta, [{"caso": "caso_99", "puntaje_humano": "3"}])
+    with pytest.raises(ValueError, match="caso_99"):
+        leer_anotaciones(ruta)
+
+
+def test_leer_anotaciones_sin_claves(tmp_path):
+    ruta = tmp_path / "a.csv"
+    _escribir_csv(ruta, [{"caso": "caso_01", "puntaje_humano": "4"}])
+    with pytest.raises(FileNotFoundError):
+        leer_anotaciones(ruta)
 
 
 def _juicios(puntajes: list[int | None], sistema="enot") -> Juicios:
@@ -195,7 +209,8 @@ def test_armar_planilla_estratificada_y_ciega(corpus):
     reporte, consultas = _reporte_planilla()
     filas = armar_planilla(reporte, consultas, corpus, n=7, semilla=1)
     assert len(filas) == 7
-    assert all(list(f) == list(COLUMNAS_PLANILLA) for f in filas)
+    assert all(list(f) == [*COLUMNAS_PLANILLA, "consulta_id", "sistema"] for f in filas)
+    assert [f["caso"] for f in filas] == [f"caso_{i:02d}" for i in range(1, 8)]
     assert all(f["puntaje_humano"] == "" and f["comentario"] == "" for f in filas)
     claves = [(f["consulta_id"], f["sistema"]) for f in filas]
     assert len(set(claves)) == 7
@@ -223,9 +238,29 @@ def test_escribir_planilla_no_pisa(tmp_path, corpus):
     contenido = ruta.read_text(encoding="utf-8")
     assert contenido.splitlines()[0] == ",".join(COLUMNAS_PLANILLA)
     assert [a.puntaje_humano for a in leer_anotaciones(ruta)] == [None, None, None]
+    assert [(a.consulta_id, a.sistema) for a in leer_anotaciones(ruta)] == [(f["consulta_id"], f["sistema"])
+                                                                            for f in filas]
     with pytest.raises(FileExistsError):
         escribir_planilla(filas[:1], ruta)
     assert ruta.read_text(encoding="utf-8") == contenido
+    # tampoco se pisa si solo quedó el archivo de claves
+    ruta.unlink()
+    with pytest.raises(FileExistsError):
+        escribir_planilla(filas[:1], ruta)
+
+
+def test_planilla_ciega_ningun_sistema_a_la_vista(tmp_path, corpus):
+    """Revisión 008 ronda 1: quien anota (la autora de Enot) no ve qué sistema armó cada itinerario."""
+    reporte, consultas = _reporte_planilla()
+    ruta = escribir_planilla(armar_planilla(reporte, consultas, corpus, n=9), tmp_path / "anotacion_humana.csv")
+    visible = ruta.read_text(encoding="utf-8")
+    for sistema in ("B0", "B1", "enot"):
+        assert sistema not in visible
+    for fila in csv.DictReader(ruta.open(encoding="utf-8")):
+        assert set(fila) == set(COLUMNAS_PLANILLA)
+    claves = ruta_claves(ruta)
+    assert claves.name == "anotacion_humana_claves.csv"
+    assert claves.read_text(encoding="utf-8").splitlines()[0] == ",".join(COLUMNAS_CLAVES)
 
 
 def test_cli_planilla_y_calibrar(entorno, corpus):
@@ -249,9 +284,10 @@ def test_cli_planilla_y_calibrar(entorno, corpus):
     for f in filas:
         f["puntaje_humano"] = "3"
     _escribir_csv(destino, filas)
+    claves = list(csv.DictReader(ruta_claves(destino).open(encoding="utf-8")))
     juicios = Juicios(reporte=str(ruta_rep), split="dev", fecha="f", proveedor="p", modelo="m", juicios=[
         Juicio(consulta_id=f["consulta_id"], sistema=f["sistema"], estado="ok", puntaje=3, tokens_in=1, tokens_out=1,
-               latencia_s=0.0) for f in filas])
+               latencia_s=0.0) for f in claves])
     ruta_j = config.REPORTS_DIR / "juez_dev_x.json"
     ruta_j.write_text(juicios.model_dump_json(), encoding="utf-8")
     assert cal.main(["calibrar", str(ruta_j)]) == 0
@@ -322,7 +358,7 @@ def test_cli_planilla_por_defecto_y_con_carpetas(entorno, corpus, capsys):
 
     # sin --n ni --semilla: 30 casos (hay 17 juzgables) con la semilla 2026; sin --destino, va a la carpeta del set
     assert cal.main(["planilla", str(ruta_rep), "--set", str(carpeta), "--fichas", str(fichas)]) == 0
-    filas = list(csv.DictReader((carpeta / "anotacion_humana.csv").open(encoding="utf-8")))
+    filas = list(csv.DictReader((carpeta / "anotacion_humana_claves.csv").open(encoding="utf-8")))
     esperadas = armar_planilla(reporte, consultas, corpus, n=30, semilla=2026)
     assert [(f["consulta_id"], f["sistema"]) for f in filas] == [(f["consulta_id"], f["sistema"]) for f in esperadas]
 

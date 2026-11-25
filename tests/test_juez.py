@@ -213,3 +213,16 @@ def test_cli_juez_sin_fichas(entorno, capsys):
     ruta_reporte.write_text(_reporte().model_dump_json(), encoding="utf-8")
     assert juez.main([str(ruta_reporte)], crear_cliente=lambda: None) == 1   # data/fichas/fichas.jsonl no existe
     assert "no existe el corpus de fichas" in capsys.readouterr().err
+
+
+
+def test_contexto_juez_no_muestra_experiencias_inventadas(corpus):
+    """Revisión 008 ronda 1: la experiencia que escribe el sistema no es dato; solo se muestra si está en la ficha."""
+    it = Itinerario(dias=[DiaItinerario(numero=1, dia_semana="vie", paradas=[
+        Parada(bodega_id="sint-gevrey", hora_inicio="10:00", duracion_min=60,
+               experiencia="[SINTÉTICA] Dégustation de grands crus en cave familiale"),
+        Parada(bodega_id="sint-beaune", hora_inicio="12:00", duracion_min=60, experiencia="grands crus")])])
+    ctx = contexto_juez(consulta(), it, corpus)
+    assert "cave familiale" not in ctx
+    # la de sint-beaune está en la ficha (sin distinguir mayúsculas) y se muestra con el nombre de la ficha
+    assert "experiencia: Grands crus" in ctx and "experiencia: grands crus" not in ctx

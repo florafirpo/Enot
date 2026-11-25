@@ -234,7 +234,7 @@ def test_cli_reporte_escribe_resultados(entorno, escenario):
     r = config.REPORTS_DIR / "eval_dev_x.json"
     r.write_text(reporte.model_dump_json(), encoding="utf-8")
     j = config.REPORTS_DIR / "juez_dev_x.json"
-    j.write_text(juicios.model_dump_json(), encoding="utf-8")
+    j.write_text(juicios.model_copy(update={"reporte": str(r)}).model_dump_json(), encoding="utf-8")
     p = entorno / "precios.json"
     p.write_text(json.dumps({k: v.model_dump() for k, v in PRECIOS.items()}), encoding="utf-8")
     assert rep.main([str(r), "--juicios", str(j), "--precios", str(p)]) == 0
@@ -314,7 +314,7 @@ def test_cli_reporte_con_calibracion_y_errores(entorno, escenario, capsys):
     r = config.REPORTS_DIR / "eval_dev_x.json"
     r.write_text(reporte.model_dump_json(), encoding="utf-8")
     j = config.REPORTS_DIR / "juez_dev_x.json"
-    j.write_text(juicios.model_dump_json(), encoding="utf-8")
+    j.write_text(juicios.model_copy(update={"reporte": str(r)}).model_dump_json(), encoding="utf-8")
     c = config.REPORTS_DIR / "calibracion_x.json"
     c.write_text(Calibracion(pares=3, sin_anotar=0, sin_juicio=0, spearman=0.5, kappa=0.4, kappa_cuadratico=0.3,
                              apto=False, motivo="3 pares < 30").model_dump_json(), encoding="utf-8")
@@ -336,3 +336,40 @@ def test_render_muestra_infactibles_detectados(escenario):
     reporte.metricas["enot"] = _metricas(2 / 3, infactibles_detectados=0.75)
     md = render_markdown(reporte, filas_sistemas(reporte, juicios, PRECIOS), origen="r", precios_cargados=True)
     assert "| enot | 66.7% | 0.0% | 50.0% | 0.20 | 75.0% | 4.00 | 4.00 | 2 (0) |" in md.splitlines()
+
+
+
+# --- revisión 008 ronda 1 ------------------------------------------------------------------------------------------
+
+def test_filas_ignoran_juicios_de_otras_consultas(escenario):
+    """Un juicio de una consulta que no está en el reporte (o que no entregó itinerario) no entra al preference score."""
+    reporte, juicios = escenario
+    extra = [Juicio(consulta_id="q77", sistema="enot", estado="ok", puntaje=1, tokens_in=1, tokens_out=1,
+                    latencia_s=0),
+             Juicio(consulta_id="q3", sistema="enot", estado="ok", puntaje=1, tokens_in=1, tokens_out=1,
+                    latencia_s=0)]   # enot/q3 fue infactible: no hay itinerario que juzgar
+    mezclados = juicios.model_copy(update={"juicios": juicios.juicios + extra})
+    e = {f.sistema: f for f in filas_sistemas(reporte, mezclados, PRECIOS)}["enot"]
+    assert e.preferencia_media == pytest.approx(4) and e.juicios == 2
+
+
+def test_verificar_juicios_de_otra_corrida(escenario, tmp_path):
+    reporte, juicios = escenario
+    ruta = tmp_path / "eval_dev_2026-11-29-120000.json"
+    rep.verificar_juicios(juicios.model_copy(update={"reporte": f"reports/{ruta.name}"}), reporte, ruta)
+    with pytest.raises(ValueError, match="split"):
+        rep.verificar_juicios(juicios.model_copy(update={"reporte": str(ruta), "split": "test"}), reporte, ruta)
+    with pytest.raises(ValueError, match="eval_dev_viejo"):
+        rep.verificar_juicios(juicios.model_copy(update={"reporte": "reports/eval_dev_viejo.json"}), reporte, ruta)
+
+
+def test_cli_reporte_rechaza_juicios_de_otro_reporte(entorno, escenario, capsys):
+    reporte, juicios = escenario
+    r = config.REPORTS_DIR / "eval_dev_x.json"
+    r.write_text(reporte.model_dump_json(), encoding="utf-8")
+    j = config.REPORTS_DIR / "juez_dev_viejo.json"
+    j.write_text(juicios.model_copy(update={"reporte": "reports/eval_dev_viejo.json"}).model_dump_json(),
+                 encoding="utf-8")
+    assert rep.main([str(r), "--juicios", str(j)]) == 1
+    assert "make juez" in capsys.readouterr().err
+    assert not (config.REPORTS_DIR / "resultados.md").exists()
