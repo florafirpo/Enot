@@ -327,3 +327,20 @@ def test_resumir_rechaza_salidas_duplicadas_o_ajenas(corpus):
         resumir([consulta("q1")], [salida(id="q1"), salida(id="q1")], corpus)
     with pytest.raises(ValueError, match="q9"):
         resumir([consulta("q1")], [salida(id="q1"), salida(id="q9")], corpus)
+
+
+# --- sobrevivientes de mutation -----------------------------------------------------------------
+
+def test_afirmaciones_solo_cuentan_lo_entregado(corpus):
+    # un "infactible" que trae una propuesta no le afirma nada al turista
+    inventado = itinerario(("vie", [parada("b0:X", exp="Cata")]))
+    assert afirmaciones(salida(inventado, tipo="infactible"), corpus) == (0, 0)
+    assert afirmaciones(salida(inventado), corpus) == (2, 2)
+
+
+def test_recomendaciones_siguen_despues_de_una_salida_sin_itinerario(corpus):
+    salidas = [salida(None, tipo="error", id="q0"),
+               salida(itinerario(("vie", [parada("sint-gevrey")])), tipo="pregunta", id="q1"),
+               salida(itinerario(("vie", [parada("sint-beaune")])), id="q2")]
+    cuentas = recomendaciones_por_bodega(salidas, corpus)
+    assert cuentas["sint-beaune"] == 1 and cuentas["sint-gevrey"] == 0
