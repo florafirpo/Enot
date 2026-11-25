@@ -16,8 +16,10 @@ import argparse
 import csv
 import itertools
 import json
+import os
 import random
 import re
+import shutil
 import string
 import sys
 import unicodedata
@@ -39,7 +41,7 @@ __all__ = ["CUOTAS", "FRACCION_DEV", "FRACCION_REVISION", "SEMILLA", "VERSION_GE
            "certificado_infactible", "conserva_anclas", "escribir_set", "generar", "main", "muestra_revision",
            "parafraseador_llm", "particionar", "tasa_error_revision"]
 
-VERSION_GENERADOR = "006.1"
+VERSION_GENERADOR = "006.2"
 SEMILLA = 2026
 FRACCION_DEV = 0.6
 FRACCION_REVISION = 0.2
@@ -94,35 +96,35 @@ NOMBRE_IDIOMA = {"en": "inglés", "de": "alemán", "es": "español", "it": "ital
                  "fr": "francés"}
 # (texto que escribe el turista, etiqueta en `preferencias`)
 PREFERENCIAS = (
-    ("Buscamos algo familiar, nada de casas grandes.", "domaines familiares, no casas grandes"),
-    ("Nos interesan los vinos biodinámicos.", "vinos biodinámicos"),
-    ("Queremos probar algún grand cru.", "probar grands crus"),
-    ("Preferimos productores chicos y poco conocidos.", "productores chicos y poco conocidos"),
-    ("Tomamos más que nada blancos, sobre todo chardonnay.", "vinos blancos, chardonnay"),
-    ("Nos encanta el pinot noir.", "tintos de pinot noir"),
-    ("Nos gustaría ver la bodega por dentro, no solo catar.", "visita a la bodega además de la cata"),
+    ("[Busco|Buscamos] algo familiar, nada de casas grandes.", "domaines familiares, no casas grandes"),
+    ("[Me|Nos] interesan los vinos biodinámicos.", "vinos biodinámicos"),
+    ("[Quiero|Queremos] probar algún grand cru.", "probar grands crus"),
+    ("[Prefiero|Preferimos] productores chicos y poco conocidos.", "productores chicos y poco conocidos"),
+    ("[Tomo|Tomamos] más que nada blancos, sobre todo chardonnay.", "vinos blancos, chardonnay"),
+    ("[Me|Nos] encanta el pinot noir.", "tintos de pinot noir"),
+    ("[Me|Nos] gustaría ver la bodega por dentro, no solo catar.", "visita a la bodega además de la cata"),
 )
 PRESUPUESTOS = (10, 15, 20, 25, 30, 40, 50, 60, 80, 100)
 FRANJAS = (("10:00", "17:00"), ("14:00", "18:30"), ("09:00", "13:00"), ("11:00", "19:00"), ("10:30", "16:00"))
 
 PLANTILLAS: dict[str, tuple[str, ...]] = {
     "dias": (
-        "¡Hola! Quiero hacer {dias} de bodegas arrancando el {inicio}. {personas} y nos movemos {transporte}.",
+        "¡Hola! Quiero hacer {dias} de bodegas arrancando el {inicio}. {personas} y [me muevo|nos movemos] {transporte}.",
         "Tengo {dias} libres desde el {inicio} para recorrer domaines en Borgoña. {personas}, {transporte}.",
-        "Vamos a estar {dias} desde el {inicio}, pero solo podemos visitar bodegas de {h1} a {h2}. "
+        "[Voy|Vamos] a estar {dias} desde el {inicio}, pero solo [puedo|podemos] visitar bodegas de {h1} a {h2}. "
         "{personas}, {transporte}.",
     ),
     "transporte": (
-        "Llegamos el {inicio} y tenemos {dias} para bodegas. {personas}; nos movemos {transporte}.",
-        "¿Me armás un recorrido de {dias} por bodegas {transporte}? Empezamos el {inicio}. {personas}.",
+        "[Llego|Llegamos] el {inicio} y [tengo|tenemos] {dias} para bodegas. {personas}; [me muevo|nos movemos] {transporte}.",
+        "¿Me armás un recorrido de {dias} por bodegas {transporte}? [Empiezo|Empezamos] el {inicio}. {personas}.",
         "{personas}. La idea es moverse {transporte}: {dias} de catas a partir del {inicio}.",
     ),
     "presupuesto": (
         "Quiero {dias} de bodegas desde el {inicio}. {personas}, {transporte}. "
         "Presupuesto: hasta {presupuesto} euros por persona en las visitas.",
-        "{personas}, nos movemos {transporte}. Tenemos {dias} a partir del {inicio} y no queremos gastar más de "
+        "{personas}, [me muevo|nos movemos] {transporte}. [Tengo|Tenemos] {dias} a partir del {inicio} y no [quiero|queremos] gastar más de "
         "{presupuesto} € por persona.",
-        "Busco {dias} de catas empezando el {inicio}, {transporte}. {personas}. Tenemos un tope de {presupuesto} "
+        "Busco {dias} de catas empezando el {inicio}, {transporte}. {personas}. [Tengo|Tenemos] un tope de {presupuesto} "
         "euros por cabeza para las degustaciones.",
     ),
     "grupo": (
@@ -133,7 +135,7 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
     ),
     "idioma": (
         "Quiero {dias} de bodegas desde el {inicio}. {personas}, {transporte}. {idioma_frase}",
-        "{personas}, nos movemos {transporte}, {dias} desde el {inicio}. {idioma_frase}",
+        "{personas}, [me muevo|nos movemos] {transporte}, {dias} desde el {inicio}. {idioma_frase}",
     ),
     "accesibilidad": (
         "{personas} y una persona va en silla de ruedas. Queremos {dias} de bodegas desde el {inicio}, "
@@ -145,18 +147,18 @@ PLANTILLAS: dict[str, tuple[str, ...]] = {
     ),
 }
 IDIOMA_FRASES = ("Las visitas tienen que ser en {idioma}.",
-                 "No hablamos francés, así que necesitamos visitas en {idioma}.")
-FRASE_FRANCES = "Las visitas pueden ser en francés, lo hablamos bien."
+                 "No [hablo|hablamos] francés, así que [necesito|necesitamos] visitas en {idioma}.")
+FRASE_FRANCES = "Las visitas pueden ser en francés, lo [hablo|hablamos] bien."
 PLANTILLAS_INFACTIBLES: dict[str, str] = {
-    "demasiadas_bodegas": "Queremos visitar {n_bodegas} bodegas en un solo día, el {inicio}, entre las {h1} y "
+    "demasiadas_bodegas": "[Quiero|Queremos] visitar {n_bodegas} bodegas en un solo día, el {inicio}, entre las {h1} y "
                           "las {h2}. {personas}, {transporte}.",
-    "zonas_lejanas": "Tenemos un solo día, el {inicio}, y vamos {transporte}. {personas}. Queremos visitar una "
+    "zonas_lejanas": "[Tengo|Tenemos] un solo día, el {inicio}, y [voy|vamos] {transporte}. {personas}. [Quiero|Queremos] visitar una "
                      "bodega en {z1} y otra en {z2} ese mismo día.",
     "zona_fuera_de_borgona": "Quiero hacer {dias} de bodegas en {zona_fuera} desde el {inicio}. {personas}, "
                              "{transporte}.",
 }
-FRASE_ZONA = (" Nos interesa {z}.", " La idea es recorrer {z}.")
-FRASE_DOS_ZONAS = " Queremos conocer {z1} y {z2}."
+FRASE_ZONA = (" [Me|Nos] interesa {z}.", " La idea es recorrer {z}.")
+FRASE_DOS_ZONAS = " [Quiero|Queremos] conocer {z1} y {z2}."
 
 
 class Consulta(BaseModel):
@@ -276,6 +278,14 @@ class _Borrador:
         self.poner("n", str(personas), str(personas))
 
 
+_RE_NUMERO = re.compile(r"\[([^|\]]*)\|([^\]]*)\]")
+
+
+def _numero(texto: str, singular: bool) -> str:
+    """Resuelve las marcas `[singular|plural]`: una persona que viaja sola no escribe "tenemos"."""
+    return _RE_NUMERO.sub(lambda m: m.group(1) if singular else m.group(2), texto)
+
+
 def _rotar(valores: Sequence, rot: int):
     """Rotación sobre los valores de la dimensión foco: varía sin repetir de más (`rot` arranca al azar)."""
     return valores[rot % len(valores)]
@@ -360,7 +370,7 @@ def _factible(rng: random.Random, escenario: str, i: int, rot: int) -> tuple[str
     texto = b.redactar(plantillas[num])
     texto = texto[0].upper() + texto[1:]
     texto += _zonas_opcionales(b, transporte) + _preferencia_opcional(b)
-    return f"{escenario}-{num + 1}", (texto, b)
+    return f"{escenario}-{num + 1}", (_numero(texto, personas == 1), b)
 
 
 def _pares_lejanos(transporte: str) -> list[tuple[str, str]]:
@@ -401,7 +411,7 @@ def _infactible(rng: random.Random, i: int) -> tuple[str, tuple[str, _Borrador]]
     if motivo != "zona_fuera_de_borgona":
         b.anclas.append("un solo día")   # está escrito en la plantilla, no en un slot
     texto = b.redactar(PLANTILLAS_INFACTIBLES[motivo])
-    return f"infactible-{motivo}", (texto, b)
+    return f"infactible-{motivo}", (_numero(texto, personas == 1), b)
 
 
 def _parafrasear(consultas: list[Consulta], parafraseador: Callable[[str], str]) -> list[Consulta]:
@@ -501,7 +511,8 @@ def _jsonl(ruta: Path, consultas: Sequence[Consulta]) -> None:
 
 def escribir_set(destino: Path, semilla: int = SEMILLA,
                  parafraseador: Optional[Callable[[str], str]] = None) -> ResumenSet:
-    """Genera y escribe dev, test, la planilla de revisión y la configuración. Todo o nada."""
+    """Genera y escribe dev, test, la planilla de revisión y la configuración. Todo o nada: no escribe si dev/ o
+    test/ existen, y si algo falla a mitad de camino no deja nada."""
     destino = Path(destino)
     existentes = [p for p in ("dev", "test") if (destino / p).exists()]
     if existentes:
@@ -511,26 +522,35 @@ def escribir_set(destino: Path, semilla: int = SEMILLA,
     dev, test = particionar(consultas, semilla)
     muestra = muestra_revision(dev, test, semilla)
 
-    _jsonl(destino / "dev" / "consultas.jsonl", dev)
-    _jsonl(destino / "test" / "consultas.jsonl", test)
-    with open(destino / "revision_manual.csv", "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNAS_REVISION)
-        w.writeheader()
-        for particion, c in muestra:
-            w.writerow({"id": c.id, "particion": particion, "escenario": c.escenario, "plantilla": c.plantilla,
-                        "texto": c.texto, "restricciones": c.restricciones.model_dump_json(),
-                        "bodegas_por_dia": c.bodegas_por_dia or "", "zonas_mismo_dia": "; ".join(c.zonas_mismo_dia),
-                        "infactible": "sí" if c.infactible else "no", "motivo_infactible": c.motivo_infactible or "",
-                        "correcta": "", "comentario": ""})
-    cuenta = Counter(c.parafrasis for c in consultas)
-    parafrasis = {k: cuenta[k] for k in ("no", "aceptada", "rechazada")}
-    meta = {"version": VERSION_GENERADOR, "semilla": semilla, "cuotas": CUOTAS,
-            "fraccion_dev": FRACCION_DEV, "fraccion_revision": FRACCION_REVISION,
-            "visita_minima_min": VISITA_MINIMA_MIN,
-            "conteos": {"dev": dict(Counter(c.escenario for c in dev)), "test": dict(Counter(c.escenario for c in test))},
-            "infactibles": {"dev": sum(c.infactible for c in dev), "test": sum(c.infactible for c in test)},
-            "parafrasis": parafrasis}
-    (destino / "generacion.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Todo se arma en una carpeta temporal hermana y se mueve al final: si algo falla, no queda un set a medias
+    # que bloquee la próxima corrida.
+    tmp = destino / f".generando-{os.getpid()}"
+    tmp.mkdir(parents=True)
+    try:
+        _jsonl(tmp / "dev" / "consultas.jsonl", dev)
+        _jsonl(tmp / "test" / "consultas.jsonl", test)
+        with open(tmp / "revision_manual.csv", "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=COLUMNAS_REVISION)
+            w.writeheader()
+            for particion, c in muestra:
+                w.writerow({"id": c.id, "particion": particion, "escenario": c.escenario, "plantilla": c.plantilla,
+                            "texto": c.texto, "restricciones": c.restricciones.model_dump_json(),
+                            "bodegas_por_dia": c.bodegas_por_dia or "", "zonas_mismo_dia": "; ".join(c.zonas_mismo_dia),
+                            "infactible": "sí" if c.infactible else "no", "motivo_infactible": c.motivo_infactible or "",
+                            "correcta": "", "comentario": ""})
+        cuenta = Counter(c.parafrasis for c in consultas)
+        parafrasis = {k: cuenta[k] for k in ("no", "aceptada", "rechazada")}
+        meta = {"version": VERSION_GENERADOR, "semilla": semilla, "cuotas": CUOTAS,
+                "fraccion_dev": FRACCION_DEV, "fraccion_revision": FRACCION_REVISION,
+                "visita_minima_min": VISITA_MINIMA_MIN,
+                "conteos": {"dev": dict(Counter(c.escenario for c in dev)), "test": dict(Counter(c.escenario for c in test))},
+                "infactibles": {"dev": sum(c.infactible for c in dev), "test": sum(c.infactible for c in test)},
+                "parafrasis": parafrasis}
+        (tmp / "generacion.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        for nombre in ("dev", "test", "revision_manual.csv", "generacion.json"):
+            (tmp / nombre).replace(destino / nombre)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return ResumenSet(dev=len(dev), test=len(test), revision=len(muestra), parafrasis=parafrasis)
 
 

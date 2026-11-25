@@ -67,7 +67,7 @@ def test_misma_semilla_mismo_set():
     assert [c.model_dump() for c in a] == [c.model_dump() for c in b]
 
 
-HUELLA = "PENDIENTE"  # sha256 (16 primeros) del set de la semilla por defecto, versión 006.2
+HUELLA = "eaf68a96e809d9db"  # sha256 (16 primeros) del set de la semilla por defecto, versión 006.2
 
 
 def test_huella_del_set_por_defecto():
