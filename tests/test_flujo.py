@@ -20,6 +20,7 @@ from enot.flujo import (
     Sesion,
     avisar_zonas_desconocidas,
     explicar_infactible,
+    explicar_sin_candidatas,
     tokens_usados,
 )
 from enot.modelos import Bodega, DiaItinerario, Itinerario, Parada, PerfilViaje
@@ -251,6 +252,7 @@ def test_sin_candidatas_explica_por_que(corpus, indice, sesion):
     r = Flujo(cliente(g), corpus, indice).turno(sesion, "El lunes en la Côte Chalonnaise")
     assert r.tipo == "sin_candidatas"
     assert "no abre ninguno de los días del viaje (lun)" in r.texto
+    assert "fuera de las pedidas" not in r.texto  # que las otras zonas queden afuera es lo que pidió
     assert g.recibido["planificador"] == []
     assert sesion.historial[-1].texto == r.texto
 
@@ -356,6 +358,22 @@ def test_explicar_infactible_texto():
     assert "sigue vigente" not in t
     con_vigente = explicar_infactible(vs, 1, hay_vigente=True)
     assert "sigue vigente" in con_vigente and "1 intento" in con_vigente and "1 intentos" not in con_vigente
+
+
+def test_explicar_sin_candidatas_cuenta_motivos(corpus):
+    # sin zona pedida cuentan todas las bodegas: 3 cierran los lunes, 1 la pidió evitar
+    perfil = PerfilViaje(**{**PERFIL, "dia_inicio": "lun", "bodegas_evitar": ["sint-gevrey"]})
+    assert explicar_sin_candidatas(corpus.values(), perfil, cuantos=2).splitlines() == [
+        "No encontré bodegas que cumplan a la vez todo lo que pediste.",
+        "Los motivos más frecuentes:",
+        "- no abre ninguno de los días del viaje (lun) (3 bodegas)",
+        "- el turista pidió evitarla (1 bodega)",
+        "Si cambiás alguna condición (días, zona, presupuesto, idioma), lo intento de nuevo.",
+    ]
+    assert explicar_sin_candidatas([], perfil).splitlines() == [
+        "No encontré bodegas que cumplan a la vez todo lo que pediste.",
+        "Si cambiás alguna condición (días, zona, presupuesto, idioma), lo intento de nuevo.",
+    ]
 
 
 def test_avisar_zonas_desconocidas_texto():

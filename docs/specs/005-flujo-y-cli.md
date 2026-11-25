@@ -126,7 +126,10 @@ Tests en `tests/test_flujo.py` (corpus SINTÉTICO, `ClienteFalso` con un guion p
 - `test_zona_desconocida_avisa_sin_buscar`: "Alsacia" → `zona_desconocida`, "No reconozco la zona Alsacia", sin
   planificador; "Chablis" no dispara el aviso.
 - `test_sin_candidatas_explica_por_que`: ninguna bodega abre ese día en esa zona → `sin_candidatas` con el motivo;
-  sin planificador.
+  sin planificador. Con zona pedida, los motivos se cuentan solo sobre las bodegas de esa zona ("fuera de las
+  pedidas" no aparece: es lo que pidió el turista).
+- `test_explicar_sin_candidatas_cuenta_motivos`: texto exacto con los motivos más frecuentes, singular y plural, y
+  sin la lista cuando no hay motivos.
 - `test_tope_de_tokens_corta_el_loop`: con un tope que se alcanza tras el 1.er intento inválido → `tope_tokens`, una
   sola llamada al planificador; el turno siguiente no llama al LLM.
 - `test_tope_antes_de_responder_entrega_el_detalle_sin_llm`: tope alcanzado con un itinerario válido → el texto es
