@@ -337,14 +337,27 @@ def test_escribir_set_crea_archivos(tmp_path):
             "motivo_infactible", "correcta", "comentario"} <= set(filas[0])
     assert all(f["correcta"] == "" and f["comentario"] == "" for f in filas)
     por_id = {c.id: c for c in dev + test}
+    assert [(f["particion"], f["id"]) for f in filas] == [(p, c.id) for p, c in muestra_revision(dev, test, 11)]
     for f in filas:
-        assert json.loads(f["restricciones"]) == por_id[f["id"]].restricciones.model_dump(mode="json")
+        c = por_id[f["id"]]
+        assert json.loads(f["restricciones"]) == c.restricciones.model_dump(mode="json")
+        assert (f["escenario"], f["plantilla"], f["texto"]) == (c.escenario, c.plantilla, c.texto)
+        assert f["infactible"] == ("sí" if c.infactible else "no")
+        assert f["motivo_infactible"] == (c.motivo_infactible or "")
+        assert f["bodegas_por_dia"] == (str(c.bodegas_por_dia) if c.bodegas_por_dia else "")
+        assert f["zonas_mismo_dia"] == "; ".join(c.zonas_mismo_dia)
+    assert any(f["infactible"] == "sí" and f["motivo_infactible"] for f in filas)
+    assert any(f["bodegas_por_dia"] for f in filas) or any(f["zonas_mismo_dia"] for f in filas)
 
     meta = json.loads((base / "generacion.json").read_text(encoding="utf-8"))
-    assert meta["semilla"] == 11 and meta["version"] == g.VERSION_GENERADOR
-    assert meta["conteos"]["dev"] == {e: n * 3 // 5 for e, n in CUOTAS.items()}
-    assert meta["conteos"]["test"] == {e: n * 2 // 5 for e, n in CUOTAS.items()}
-    assert meta["parafrasis"] == {"no": 100, "aceptada": 0, "rechazada": 0}
+    assert meta == {
+        "version": g.VERSION_GENERADOR, "semilla": 11, "cuotas": CUOTAS, "fraccion_dev": 0.6,
+        "fraccion_revision": 0.2, "visita_minima_min": 30,
+        "conteos": {"dev": {e: n * 3 // 5 for e, n in CUOTAS.items()},
+                    "test": {e: n * 2 // 5 for e, n in CUOTAS.items()}},
+        "infactibles": {"dev": 12, "test": 8},
+        "parafrasis": {"no": 100, "aceptada": 0, "rechazada": 0},
+    }
 
 
 @pytest.mark.parametrize("existente", ["test", "dev"])
