@@ -153,11 +153,14 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
 - `test_afirmaciones_correctas` — bodega + experiencia + precio del corpus: 3 afirmaciones, 0 inventadas.
 - `test_afirmaciones_bodega_inexistente` — parada a una bodega que no está, con experiencia y precio: 3 y 3.
 - `test_afirmaciones_experiencia_inexistente` — experiencia no publicada: cuenta 1 inventada de 2.
+- `test_afirmaciones_sin_itinerario` — una salida sin itinerario ni precios no afirma nada.
 - `test_afirmaciones_precio` — parametrizado: precio exacto, sin experiencia = la más barata en EUR, borde de la
   tolerancia (20,009 ok; 20,02 inventado), precio de una experiencia sin precio en EUR (inventado).
 - `test_hard_pass_itinerario_valido` — itinerario factible y completo → `hard_pass` True.
 - `test_hard_pass_falla` — parametrizado: una violación (cerrada), estructura incompleta, precio inventado, tipo
   `infactible` en una consulta factible, sin salida.
+- `test_hard_pass_tipo_no_itinerario_con_itinerario_valido_falla` — cuenta lo que se entrega: un `infactible` no
+  entrega itinerario aunque traiga uno.
 - `test_hard_pass_usa_la_etiqueta` — el mismo itinerario pasa con 2 personas y falla si la etiqueta dice 15
   (capacidad 12).
 - `test_hard_pass_ignora_advertencias` — un itinerario con advertencia de accesibilidad sin confirmar pasa (ADR-0012).
@@ -168,9 +171,12 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
 - `test_cobertura_y_recomendaciones` — dos salidas, una no-itinerario y una bodega inventada: cuentas por bodega con
   ceros, cobertura 2/7 y el Gini correspondiente.
 - `test_detecta_infactible` — parametrizado por tipo y motivo (incluye `zona_desconocida` con y sin zona fuera).
+- `test_constantes_de_infactibles` — los tipos que detectan y los motivos representables, explícitos.
 - `test_infactibles_detectados_y_desglose` — tasa total, por motivo y sobre representables, calculadas a mano;
   `infactible_detectado` es None en factibles y `hard_pass` es None en infactibles.
+- `test_representables_none_sin_infactibles_representables`.
 - `test_resumir_por_escenario_y_tipos` — hard pass por escenario y conteo de tipos de salida.
+- `test_resumir_consulta_sin_salida_es_error` — falta la salida de una consulta → `error`, cuenta como falla.
 - `test_resumir_rechaza_salidas_duplicadas_o_ajenas` — ValueError.
 
 ### `tests/test_baselines.py`
@@ -182,23 +188,31 @@ guardia); su `tipo` pasa de `infactible` a `itinerario` cuando hay propuesta.
 - `test_b1_itinerario_factible_y_por_cercania` — Côte de Beaune un viernes: pasa el verificador y la estructura, y la
   segunda parada es la más cercana a la primera.
 - `test_b1_respeta_presupuesto` — con 20 EUR solo entra lo que cuesta ≤ 20 y el verificador no marca presupuesto.
+- `test_b1_prueba_las_experiencias_si_sin_experiencia_no_sirve` — variante sintética que publica solo francés:
+  en inglés elige la experiencia que lo ofrece, con su duración.
 - `test_b1_espera_la_apertura` — jornada desde las 09:00 y la bodega abre a las 10:00 → primera parada a las 10:00.
+- `test_b1_espera_la_segunda_franja` — si la mañana no alcanza, la visita va a la franja de la tarde (14:00).
 - `test_b1_sin_candidatas` — zona fuera de Borgoña → `sin_candidatas` (y cuenta como infactible detectado).
 - `test_b1_dia_sin_paradas_es_infactible` — domingo + lunes en Chablis (cerrada los lunes).
 - `test_b1_no_repite_y_respeta_maximo` — 2 días con `max_paradas_dia=1`: una por día, distintas.
+- `test_b1_duracion_por_defecto` — bodega sin experiencias: dura `duracion_defecto`.
 - `test_enot_entrega_itinerario_valido` — `Flujo` con guion: tipo itinerario, tokens desde la traza.
 - `test_enot_infactible_no_entrega_itinerario` — propuestas siempre inválidas → itinerario None.
 - `test_b2_entrega_la_primera_propuesta` — con una propuesta inválida y después una válida: B2 entrega la inválida
   (hard pass False) y Enot la válida (hard pass True).
+- `test_sistema_enot_sin_entregar_sin_verificar_no_cambia_el_tipo`.
+- `test_cada_consulta_tiene_su_propia_sesion` — una sesión y una traza por consulta; los tokens no se acumulan.
 
 ### `tests/test_correr_eval.py`
 - `test_cargar_consultas_sin_set` — `SetInexistente` con un mensaje que nombra el generador.
+- `test_cargar_consultas` — lee 60 de dev y 40 de test de un set generado.
 - `test_evaluar_sigue_si_un_sistema_falla` — un sistema que lanza deja salidas `error` y las métricas se calculan.
 - `test_main_b1_sin_llm` — set escrito con `escribir_set` en una carpeta temporal y corpus sintético: corre B1 con
   `--limite 5`, no crea cliente LLM, y el JSON trae métricas, 5 salidas y la configuración (versión del generador,
   split, sistemas).
 - `test_main_todos_los_sistemas` — fábricas falsas de cliente y embedder: el reporte trae B0, B1, B2 y enot.
 - `test_main_sin_set_sale_con_1`.
+- `test_main_sistema_desconocido_sale_con_1` y `test_main_sin_corpus_sale_con_1`.
 - `test_escribir_reporte_no_pisa` — dos reportes en el mismo segundo → dos archivos.
 
 ### Sensores
